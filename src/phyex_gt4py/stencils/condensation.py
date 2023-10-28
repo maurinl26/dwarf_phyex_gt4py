@@ -17,6 +17,9 @@ def condensation(
     Cst: Constants,
     nebn: Neb, 
     icep: RainIceParam,
+    hfrac_ice: str,
+    hcondens: str,
+    hlambda3: str,                          # formulation for lambda3 coeff
     zz: gtscript.Field[dtype],              # height of model levels
     pabs: gtscript.Field[dtype],            # pressure (Pa)
     rhodref: gtscript.Field[dtype],   
@@ -39,7 +42,13 @@ def condensation(
     cph: Optional[gtscript.Field[dtype]],
     ifr: gtscript.Field[dtype],             # ratio cloud ice moist part
     ssio: gtscript.Field[dtype],            # super-saturation with respect to ice in the super saturated fraction 
-    ssiu: gtscript.Field[dtype],            # super-saturatiin with respect to in in the sub saturated fraction
+    ssiu: gtscript.Field[dtype],            # super-saturation with respect to in in the sub saturated fraction
+    
+    hlc_hrc: Optional[gtscript.Field[dtype]],         #
+    hlc_hcf: Optional[gtscript.Field[dtype]],         # cloud fraction
+    hli_hri: Optional[gtscript.Field[dtype]],         # 
+    hli_hcf: Optional[gtscript.Field[dtype]],         
+    
    
     # Temporary fields
     itpl: gtscript.Field[IJ, dtype],        # 2D field to store tropopause height
@@ -63,6 +72,15 @@ def condensation(
     cldini: gtscript.Field[dtype],          # To be initialized for icecloud
     
     frac: gtscript.Field[dtype],            # ice fraction
+    
+    a: gtscript.Field[IJ, dtype],           # related to computation of Sig_s
+    b: gtscript.Field[IJ, dtype],
+    sbar: gtscript.Field[IJ, dtype],
+    sigma: gtscript.Field[IJ, dtype],
+    q1: gtscript.Field[IJ, dtype],
+    
+    inq1: int,
+    inc: dtype,
     
     ouseri: bool,                           # switch to compute both liquid and solid condensate (True) or only solid condensate (False)
     osigmas: bool,                          # use present global sigma_s values (sigs) or that from turbulence scheme
@@ -224,8 +242,158 @@ def condensation(
             if lmfconv:
                 sig_conv = csig_conv * mfconv[0, 0, 0] / a[0, 0]
                 
-            sigma[0, 0] = sqrt(max(1e-25, (csigma * ll / zz * a* drw) ** 2 - 2 * a * b * drw * dtl + (b * dtl) ** 2 + sig_conv ** 2))    
-     
+            sigma[0, 0] = sqrt(max(1e-25, (csigma * ll / zz * a* drw) ** 2 - 2 * a * b * drw * dtl + (b * dtl) ** 2 + sig_conv ** 2))   
+            
+    with computation(PARALLEL), interval(...):
+        sigma[0, 0] = max(1e-10, sigma[0, 0])
+        
+        # normalized saturation deficit
+        q1[0, 0] = sbar[0, 0] / sigma[0, 0]
+
+    # TODO : line 422 
+    if hcondens == "GAUS":
+        
+        with computation(PARALLEL), interval(...):
+        
+            # Gaussian probability density function around q1
+            # computation of g and gam(=erf(g))
+            gcond = - q1[0, 0] / sqrt(2)
+        
+            # approximation of erf function for Gaussian distribution
+            # TODO : implement sign
+            gauv = 1 - sign(1, gcond) * sqrt(1 - exp(-4 * gcond ** 2 / Cst.pi))
+        
+            # computation of cloud fraction (output)
+            cldfr[0, 0, 0] = max(0, min(1, 0.5 * gauv))
+        
+            # computation of condensate
+            cond[0, 0] = (exp(-gcond ** 2) - gcond * sqrt(Cst.pi) * gauv) * sigma[0, 0] / sqrt(2 * Cst.pi)
+            cond[0, 0] = max(cond[0, 0], 0)
+        
+            sigrc[0, 0, 0] = cldfr[0, 0, 0]
+        
+            # Computation warm/cold cloud fraction and content in high water
+            if hlc_hrf is not None and hlc_hrc is not None:
+            
+                if 1- frac > 1e-20:
+                    autc = (sbar[0, 0] - icep.criautc / (rhodref[0, 0, 0] * (1 - frac[0, 0]))) / sigma[0, 0]
+                    gautc = -autc / sqrt(2)
+                
+                    # approximation of erf function for Gaussian distribution
+                    # TODO : define sign
+                    # TODO : switch erf func approx to gscript.function
+                    gauc = 1 - sign(1, gautc) * sqrt(1 - exp(-4 aurc ** 2 / Cst.pi))
+                    hlc_hcf[0, 0, 0] = max(0, min(1, 0.5 * gauc))
+                    hlc_hrc[0, 0, 0] = (1 - frac[0, 0]) * (exp(-gautc ** 2) - gautc * sqrt(Cst.pi) * gauc) * sigma[0, 0] / sqrt(2 * Cst.pi)
+                    hlc_hrc[0, 0, 0] += icep.criautc / rhodref[0, 0, 0] * hlc_hcf[0, 0, 0]
+                    hlc_hrc[0, 0, 0] = max(0, hlc_hrc[0, 0, 0])
+                
+                else:
+                    hlc_hcf[0, 0, 0] = 0
+                    hlc_hrc[0, 0, 0] = 0
+                
+            if hli_hcf is not None and hli_hri is not None:
+                # TODO : same as above with hli_hcf and hli_hri (to be factorized)
+                NotImplemented
+                           
+    elif hcondens == "CB02":
+        
+        with computation(PARALLEL), interval(...):
+            
+            if q1 > 0 and q1 <= 2:
+                cond[0, 0] = min(exp(-1) + 0.66 * q1[0, 0] + 0.086 * q1[0, 0] ** 2, 2)  # we use the MIN function for continuity
+            elif q1 > 2:
+                cond[0, 0] = q1
+            else:
+                cond[0, 0] = exp(1.2 * q1[0, 0] - 1)
+            
+            cond[0, 0] *= sigma[0, 0]
+            
+            # cloud fraction
+            if cond[0, 0] < 1e-12:
+                cldfr[0, 0, 0] = 0
+            else:
+                cldfr[0, 0, 0] = max(0, min(1, 0.5 + 0.36 * atan(1.55 * q1[0, 0])))
+                
+            if cldfr[0, 0, 0] == 0:
+                cond[0, 0] = 0
+                
+            inq1 = min(10, max(-22, floo(min(-100, 2*q1[0, 0])))) # inner min/max prevents sigfpe when 2*zq1 does not fit into an int
+            inc = 2*q1 - inq1
+            
+            sigrc[0, 0, 0] = min(1, (1 - inc) * src_1d(inq1) + inc * src_1d(inq1 + 1))
+
+            if hlc_hcf is not None and hlc_hrc is not None:
+                hlc_hcf[0, 0, 0] = 0
+                hlc_hrc[0, 0, 0] = 0
+                
+            if hli_hcf is not None and hli_hri is not None:
+                hli_hcf[0, 0, 0] = 0
+                hli_hri[0, 0, 0] = 0             
+                
+    # TODO : line 515    
+    if not ocnd2:
+        
+        with computation(PARALLEL), interval(...):
+        
+            rc_out[0, 0, 0] = (1 - frac[0, 0]) * cond[0, 0] # liquid condensate
+            ri_out[0, 0, 0] = frac[0, 0] * cond[0, 0]       # solid condensate
+            t[0, 0, 0] += (
+                (rc_out[0, 0, 0] - rc_in[0, 0, 0]) * lv[0, 0, 0] 
+                + (ri_out[0, 0, 0] - ri_in[0, 0, 0]) * ls[0, 0, 0]  
+            ) / cpd[0, 0, 0]
+            rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
+            
+    else:
+        
+        with computation(PARALLEL), interval(...):
+            rc_out[0, 0, 0] = (1 - frac[0, 0]) * cond[0, 0]
+            
+            lwinc = rc_out[0, 0, 0] - rc_in[0, 0, 0]  
+            if abs(lwinc) > 1e-12 and esatw(t[0, 0, 0]) < 0.5 * pabs[0, 0, 0]:
+                rcold = rc_out[0, 0, 0]
+                rfrac = rv_in[0, 0, 0] - lwinc
+                
+                if rc_in[0, 0, 0] < rsw:
+                    # sub saturation over water
+                    # avoid drying of cloudwater leading to supersatiration with respect to water
+                    rsdir = min(0, rsp - rfrac)
+                else:
+                    # supersaturation over water 
+                    # avoid deposition of wtaer leading to sub-saturation with repect to water
+                    # rsdif = max(0, rsp - rfrac)
+                    rsdif = 0
+                
+                rc_out[0, 0, 0] = cond[0, 0] - rsdif
+            else:
+                rcold = rc_in[0, 0, 0]
+                
+            # Compute separate ice cloud 
+            wcldfr[0, 0, 0] = cldfr[0, 0, 0]
+            
+            dum1 = min(1, 20 * rc_out[0, 0, 0] * sqrt(dz[0, 0]) / qsi[0, 0])    # cloud liquid factor
+            dum3 = max(0, icldfr[0, 0, 0] - wcldfr[0, 0, 0])                    # pure icecloud part
+            
+            # TODO : l553 - l565 compute dum4 + update 
+            # TODO : warning l553 : condition sur jk == iktb -> interval(0, 1)
+            
+            # TODO : warning l55 : jk != iktb -> interval(1, None)
+            
+            
+            # l567
+            ri_out[0, 0, 0] = ri_in[0, 0, 0]
+            
+            # TODO : same as 341 with rcold instead of ri_in
+            t[0, 0, 0] +=  (
+                (rc_out[0, 0, 0] - rcold[0, 0, 0]) * lv[0, 0, 0] 
+                + (ri_out[0, 0, 0] - ri_in[0, 0, 0]) * ls[0, 0, 0]  
+            ) / cpd[0, 0, 0]          
+            rv_out[0, 0, 0] = rt[0, 0, 0] -rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
+                    
+    if hlambda3 == "CB":
+        with computation(PARALLEL), interval(...):          
+            sigrc[0, 0, 0] *= min(3, max(1, 1 - q1[0, 0]))
+            
 
 # TODO: enable computation on an AROME like grid        
 @gtscript.stencil(backend=backend)           
@@ -268,4 +436,6 @@ def mixing_length_scale(
             # free troposphere 
             else:
                 l[0, 0, 0] = l0
+                
+    
                 
