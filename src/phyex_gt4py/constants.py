@@ -1,90 +1,94 @@
 from dataclasses import dataclass
 import numpy as np
+from config import dtype
 
 @dataclass
 class Constants:
     
     # 1. Fondamental constants
-    pi: np.float64
-    karman: np.float64
-    lightspeed: np.float64
-    planck: np.float64
-    boltz: np.float64
-    avogadro: np.float64
+    pi: dtype
+    karman: dtype
+    lightspeed: dtype
+    planck: dtype
+    boltz: dtype
+    avogadro: dtype
     
     # 2. Astronomical constants
-    day: np.float64         # day duration
-    siyea: np.float64       # sideral year duration
-    siday: np.float64       # sideral day duration
+    day: dtype         # day duration
+    siyea: dtype       # sideral year duration
+    siday: dtype       # sideral day duration
     nsday: np.int64         # number of seconds in a day
-    omega: np.float64       # earth rotation
+    omega: dtype       # earth rotation
     
     # 3. Terrestrial geoide constants
-    radius: np.float64      # earth radius
-    gravity0: np.float64    # gravity constant 
+    radius: dtype      # earth radius
+    gravity0: dtype    # gravity constant 
     
     # 4. Reference pressure
-    p00: np.float64         # Reference pressure
-    p00ocean: np.float64    # Ref pressure for ocean model
-    rho0ocean: np.float64   # Ref density for ocean model
-    th00: np.float64        # Ref value for potential temperature
-    th00ocean: np.float64   # Ref value for pot temp in ocean model
-    sa00ocean: np.float64   # Ref value for salinity in ocean model
+    p00: dtype         # Reference pressure
+    p00ocean: dtype    # Ref pressure for ocean model
+    rho0ocean: dtype   # Ref density for ocean model
+    th00: dtype        # Ref value for potential temperature
+    th00ocean: dtype   # Ref value for pot temp in ocean model
+    sa00ocean: dtype   # Ref value for salinity in ocean model
     
     # 5. Radiation constants
-    stefan: np.float64      # Stefan-Boltzman constant
-    io: np.float64          # Solar constant
+    stefan: dtype      # Stefan-Boltzman constant
+    io: dtype          # Solar constant
     
     # 6. Thermodynamic constants
-    Md: np.float64          # Molar mass of dry air
-    Mv: np.float64          # Molar mass of water vapour
-    Rd: np.float64          # Gas constant for dry air
-    Rv: np.float64          # Gas constant for vapour
-    epsilo: np.float64      # Mv / Md
-    cpd: np.float64         # Cpd (dry air)
-    cpv: np.float64         # Cpv (vapour)
-    rholw: np.float64       # Volumic mass of liquid water
-    Cl: np.float64          # Cl (liquid)
-    Ci: np.float64          # Ci (ice)
-    tt: np.float64          # triple point temperature
-    lvtt: np.float64        # vaporisation heat constant
-    lstt: np.float64        # sublimation heat constant
-    lmtt: np.float64        # melting heat constant
-    estt: np.float64        # Saturation vapor pressure at triple point temperature
+    Md: dtype          # Molar mass of dry air
+    Mv: dtype          # Molar mass of water vapour
+    Rd: dtype          # Gas constant for dry air
+    Rv: dtype          # Gas constant for vapour
+    epsilo: dtype      # Mv / Md
+    cpd: dtype         # Cpd (dry air)
+    cpv: dtype         # Cpv (vapour)
+    rholw: dtype       # Volumic mass of liquid water
+    Cl: dtype          # Cl (liquid)
+    Ci: dtype          # Ci (ice)
+    tt: dtype          # triple point temperature
+    lvtt: dtype        # vaporisation heat constant
+    lstt: dtype        # sublimation heat constant
+    lmtt: dtype        # melting heat constant
+    estt: dtype        # Saturation vapor pressure at triple point temperature
     
-    alpw: np.float64        # Constants for saturation vapor pressure function
-    betaw: np.float64
-    gamw: np.float64
+    alpw: dtype        # Constants for saturation vapor pressure function
+    betaw: dtype
+    gamw: dtype
     
-    alpi: np.float64        # Constants for saturation vapor pressure function over solid ice
-    betai: np.float64
-    gami: np.float64
+    alpi: dtype        # Constants for saturation vapor pressure function over solid ice
+    betai: dtype
+    gami: dtype
     
-    condi: np.float64       # Thermal conductivity of ice (W m-1 K-1)
-    alphaoc: np.float64     # Thermal expansion coefficient for ocean (K-1)
-    betaoc: np.float64      # Haline contraction coeff for ocean (S-1)
-    roc: np.float64 = 0.69  # coeff for SW penetration in ocean (Hoecker et al)
-    d1: np.float64 = 1.1    # coeff for SW penetration in ocean (Hoecker et al)
-    d2: np.float64 = 23.0   # coeff for SW penetration in ocean (Hoecker et al)
+    condi: dtype       # Thermal conductivity of ice (W m-1 K-1)
+    alphaoc: dtype     # Thermal expansion coefficient for ocean (K-1)
+    betaoc: dtype      # Haline contraction coeff for ocean (S-1)
+    roc: dtype = 0.69  # coeff for SW penetration in ocean (Hoecker et al)
+    d1: dtype = 1.1    # coeff for SW penetration in ocean (Hoecker et al)
+    d2: dtype = 23.0   # coeff for SW penetration in ocean (Hoecker et al)
     
-    rholi: np.float64       # Volumic mass of ice
+    rholi: dtype       # Volumic mass of ice
     
     # 7. Precomputed constants
-    Rd_Rv: np.float64       # Rd / Rv
-    Rd_cpd: np.float64      # Rd / cpd
-    invxp00: np.float64     # 1 / p00
+    Rd_Rv: dtype       # Rd / Rv
+    Rd_cpd: dtype      # Rd / cpd
+    invxp00: dtype     # 1 / p00
     
     # 8. Machine precision
-    mnh_tiny: np.float64    # minimum real on this machine
-    mnh_tiny_12: np.float64 # sqrt(minimum real on this machine)
-    mnh_epsilon: np.float64 # minimum space with 1.0
-    mnh_huge: np.float64    # minimum real on this machine
-    mnh_huge_12_log: np.float64 # maximum log(sqrt(real)) on this machine
-    eps_dt: np.float64      # default value for dt
-    res_flat_cart: np.float64   # default     flat&cart residual tolerance
-    res_other: np.float64   # default not flat&cart residual tolerance
-    res_prep: np.float64    # default     prep      residual tolerance           
+    mnh_tiny: dtype    # minimum real on this machine
+    mnh_tiny_12: dtype # sqrt(minimum real on this machine)
+    mnh_epsilon: dtype # minimum space with 1.0
+    mnh_huge: dtype    # minimum real on this machine
+    mnh_huge_12_log: dtype # maximum log(sqrt(real)) on this machine
+    eps_dt: dtype      # default value for dt
+    res_flat_cart: dtype   # default     flat&cart residual tolerance
+    res_other: dtype   # default not flat&cart residual tolerance
+    res_prep: dtype    # default     prep      residual tolerance           
     
 
-
+    def __post_init__(self):
+        self.Rd_Rv = self.Rd / self.Rv
+        self.Rd_cpd = self.Rd / self.cpd
+        self.invxp00 = 1 / self.p00
     

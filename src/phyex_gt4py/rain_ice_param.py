@@ -36,7 +36,7 @@ class ParamIce:
     subg_rr_pdf: str            # pdf for subgrid precipitation
     subg_aucv_rc: str           # type of subgrid rc->rr autoconv. method
     subg_aucv_ri: str           # type of subgrid ri->rs autoconv. method
-    strsubg_mf_pdf: str         # PDF to use for MF cloud autoconversions
+    subg_mf_pdf: str            # PDF to use for MF cloud autoconversions
     
     ladj_before: bool           # must we perform an adjustment before rain_ice call
     ladj_after: bool            # must we perform an adjustment after rain_ice call
