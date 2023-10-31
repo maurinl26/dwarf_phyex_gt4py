@@ -1,3 +1,4 @@
+from typing import Tuple
 from config import dtype, dtype_int, backend
 
 import gt4py.cartesian.gtscript as gtscript
@@ -12,7 +13,7 @@ from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
 @gtscript.stencil(backend=backend)
 def ice_adjust(
     D: DIMPhyex,
-    Cst: Constants,
+    cst: Constants,
     parami: ParamIce,
     icep: RainIceParam,
     iced: RainIceDescr,
@@ -25,9 +26,9 @@ def ice_adjust(
     th: gtscript.Field[dtype],
     th_out: gtscript.Field[dtype],
     exn: gtscript.Field[dtype],
-    rv: gtscript.Field[dtype],
-    rc: gtscript.Field[dtype],
-    ri: gtscript.Field[dtype],
+    rv_in: gtscript.Field[dtype],
+    rc_in: gtscript.Field[dtype],
+    ri_in: gtscript.Field[dtype],
     rv_out: gtscript.Field[dtype],
     rc_out: gtscript.Field[dtype],
     ri_out: gtscript.Field[dtype],
@@ -43,37 +44,34 @@ def ice_adjust(
     hlc_hrc: gtscript.Field[dtype],
     hlc_hcf: gtscript.Field[dtype],
     hli_hri: gtscript.Field[dtype],
-    hli_hcf: gtscript.Field[dtype]
+    hli_hcf: gtscript.Field[dtype],
+    
+    # Temporary fields 
+    rv_tmp: gtscript.Field[dtype],
+    ri_tmp: gtscript.Field[dtype],
+    rc_tmp: gtscript.Field[dtype],
 
-):
-      
-    rv_in = gtscript.Field
-    rc_in = gtscript.Field
-    ri_in = gtscript.Field
-    
-    
+):    
+
     # 2.3 Compute the variation of mixing ratio
-    
     with computation(PARALLEL), interval(...):
         t = th[0, 0, 0] * exn[0, 0, 0]
-        lv, ls = latent_heat(Cst, t)
+        lv, ls = latent_heat(cst, t)
         
     # jiter  = 0
-    rv_in, rc_in, ri_in = iteration(rv_in, rc_in, ri_in, rv, rc, ri)
+    rv_tmp, rc_tmp, ri_tmp = iteration(rv_in, rc_in, ri_in, rv_tmp, rc_tmp, ri_tmp)
               
     # jiter > 0 
     for jiter in range(1, itermax):
-        backup(rv_in, rc_in, ri_in)
-        iteration(rv_in, rc_in, ri_in, rv_out, rc_out, ri_out) 
+        backup(rv_tmp, rc_tmp, ri_tmp)
+        iteration(rv_tmp, rc_tmp, ri_tmp, rv_out, rc_out, ri_out) 
         
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
-    
     with computation(PARALLEL), interval(...):
         
         # 5.0 compute the variation of mixing ratio
-    
-        w1 = (rc_out[0, 0, 0] - rc[0, 0, 0]) / tstep
-        w2 = (ri_out[0, 0, 0] - ri[0, 0, 0]) / tstep
+        w1 = (rc_out[0, 0, 0] - rc_in[0, 0, 0]) / tstep
+        w2 = (ri_out[0, 0, 0] - ri_in[0, 0, 0]) / tstep
 
         # 5.1 compute the sources
         w1 = max(w1, - rcs[0, 0, 0]) if w1 > 0 else min(w1, rvs[0, 0, 0])
@@ -83,18 +81,15 @@ def ice_adjust(
         
         w2 = max(w2, - ris[0, 0, 0]) if w1 > 0 else min(w2, ris[0, 0, 0])
         
-    if not neb.subg_cond:
+        if not neb.subg_cond:
         
-        with computation(PARALLEL), interval(...):
             
             cldfr[0, 0, 0] = 1 if rcs[0, 0, 0] + ris[0, 0, 0] > 1e-12 / tstep else 0
-            
             if compute_srcs:
                 srcs[0, 0, 0] = cldfr[0, 0, 0]
                          
-    else: 
+        else: 
         
-        with computation(PARALLEL), interval(...):
             w1 = rc_mf[0, 0, 0] / tstep
             w2 = ri_mf[0, 0, 0] / tstep
             
@@ -109,7 +104,7 @@ def ice_adjust(
             rvs[0, 0, 0] -= (w1 + w2)
             ths[0, 0, 0] += (w1 * lv[0, 0, 0] + w2 * ls[0, 0, 0]) / cph[0, 0, 0] / exnref[0, 0, 0]
             
-            if (hlc_hrc != None) and (hlc_hcf != None):
+            if hlc_hrc is not None and hlc_hcf is not None:
                 criaut = icep.criautc / rhodref[0, 0, 0]
                 hlc_hrc, hlc_hcf, w1 = subgrid_mf(
                     criaut, 
@@ -121,8 +116,8 @@ def ice_adjust(
                     tstep
                 )
                     
-            if hli_hri != None and hli_hcf != None:
-                criaut = min(icep.criauti, 10**(icep.acriauti * (t[0, 0, 0] - Cst.tt) + icep.bcriauti))
+            if hli_hri is not None and hli_hcf is not None:
+                criaut = min(icep.criauti, 10**(icep.acriauti * (t[0, 0, 0] - cst.tt) + icep.bcriauti))
                 hli_hri, hli_hcf, w2 = subgrid_mf(
                     criaut, 
                     parami.subg_mf_pdf,
@@ -132,39 +127,51 @@ def ice_adjust(
                     w2, 
                     tstep
                 )
-                    
-            
-    if rv_out != None or rc_out != None or ri_out != None or th != None:
+                       
+        if rv_out is not None or rc_out is not None or ri_out is not None or th is not None:
         
-        with computation(PARALLEL), interval(...):
             w1 = rc_mf
             w2 = ri_mf
             
-            if w1 + w2 > rv[0, 0, 0]:
-                w1 *= rv / (w1 + w2)
-                w2 = rv - w1
+            if w1 + w2 > rv_out[0, 0, 0]:
+                w1 *= rv_out / (w1 + w2)
+                w2 = rv_out - w1
             
             rc_out[0, 0, 0] += w1
             ri_out[0, 0, 0] += w2
             rv_out[0, 0, 0] -= (w1 + w2)
             t += (w1 * lv + w2 * ls) /cph
-            th_out = t / exn
             
 @gtscript.function()
 def backup(
-    rv_in: gtscript.Field,
-    ri_in: gtscript.Field,
-    rc_in: gtscript.Field,
+    rv_tmp: gtscript.Field,
+    ri_tmp: gtscript.Field,
+    rc_tmp: gtscript.Field,
     rv_out: gtscript.Field,
     ri_out: gtscript.Field,
     rc_out: gtscript.Field
-):
+) -> Tuple[gtscript.Field]:
+    """
+    Dump out fields into temporary fields to 
+    perform loop iterations
+
+    Args:
+        rv_tmp (gtscript.Field): vapour mixing ratio (temp field)
+        ri_tmp (gtscript.Field): ice mixing ratio (temp field)
+        rc_tmp (gtscript.Field): cloud mixing ratio (temp field)
+        rv_out (gtscript.Field): vapour mixing ratio (out field)
+        ri_out (gtscript.Field): ice mixing ratio (out field)
+        rc_out (gtscript.Field): cloud mixing ratio (out field)
+
+    Returns:
+        Tuple[gtscript.Field]: temporary fields
+    """
     
-    rv_in = rv_out[0, 0, 0]
-    ri_in = ri_out[0, 0, 0]
-    rc_in = rc_out[0, 0, 0]
+    rv_tmp = rv_out[0, 0, 0]
+    ri_tmp = ri_out[0, 0, 0]
+    rc_tmp = rc_out[0, 0, 0]
     
-    return rv_in, ri_in, rc_in
+    return rv_tmp, ri_tmp, rc_tmp
                             
             
 @gtscript.function
@@ -175,9 +182,22 @@ def subgrid_mf(
     hl_hc: gtscript.Field[dtype],
     cf_mf: gtscript.Field[dtype],
     w: gtscript.Field[dtype],
-    tstep: dtype,
-       
-):   
+    tstep: dtype,     
+) -> Tuple[gtscript.Field]:   
+    """_summary_
+
+    Args:
+        criaut (gtscript.Field[dtype]): _description_
+        subg_mf_pdf (gtscript.Field[dtype]): _description_
+        hl_hr (gtscript.Field[dtype]): _description_
+        hl_hc (gtscript.Field[dtype]): _description_
+        cf_mf (gtscript.Field[dtype]): _description_
+        w (gtscript.Field[dtype]): _description_
+        tstep (dtype): time step
+
+    Returns:
+        _type_: _description_
+    """
                 
     if subg_mf_pdf == "NONE":
         if w*tstep > cf_mf[0, 0, 0] * criaut:
@@ -209,8 +229,14 @@ def subgrid_mf(
 
 @gtscript.stencil(backend=backend)            
 def iteration(
-    Cst: Constants,
+    cst: Constants,
     neb: Neb,
+    icep: RainIceParam,
+    parami: ParamIce,
+    pabs: gtscript.Field[dtype],
+    zz: gtscript.Field[dtype],
+    rhodref: gtscript.Field[dtype],
+    t: gtscript.Field[dtype],
     rv_in: gtscript.Field[dtype],
     ri_in: gtscript.Field[dtype],
     rc_in: gtscript.Field[dtype],
@@ -222,6 +248,10 @@ def iteration(
     rg: gtscript.Field[dtype],
     rh: gtscript.Field[dtype],
     sigs: gtscript.Field[dtype],
+    lmfconv: bool,
+    mfconv: gtscript.Field[dtype],
+    cldfr: gtscript.Field[dtype],
+    
     sigqsat: gtscript.Field[dtype],
     krr: dtype_int
     
@@ -231,44 +261,121 @@ def iteration(
     with computation(PARALLEL), interval(...):
         if krr == 7:
             cph = (
-                Cst.cpd + Cst.cpv * rv_in
-                + Cst.Cl * (rc_in + rr)
-                + Cst.Ci * (ri_in + rs + rg + rh)
+                cst.cpd + cst.cpv * rv_in
+                + cst.Cl * (rc_in + rr)
+                + cst.Ci * (ri_in + rs + rg + rh)
             )
             
         if krr == 6:
             cph = (
-                Cst.cpd + Cst.cpv * rv_in
-                + Cst.Cl * (rc_in + rr)
-                + Cst.Ci * (ri_in + rs + rg)
+                cst.cpd + cst.cpv * rv_in
+                + cst.Cl * (rc_in + rr)
+                + cst.Ci * (ri_in + rs + rg)
             )
         if krr == 5:
             cph = (
-                Cst.cpd + Cst.cpv * rv_in
-                + Cst.Cl * (rc_in + rr)
-                + Cst.Ci * (ri_in + rs)
+                cst.cpd + cst.cpv * rv_in
+                + cst.Cl * (rc_in + rr)
+                + cst.Ci * (ri_in + rs)
             )
         if krr == 4:
             cph = (
-                Cst.cpd + Cst.cpv * rv_in
-                + Cst.Cl * (rc_in + rr)
+                cst.cpd + cst.cpv * rv_in
+                + cst.Cl * (rc_in + rr)
             )
         if krr == 2:
             cph = (
-                Cst.cpd + Cst.cpv * rv_in
-                + Cst.Cl * rc_in
-                + Cst.Ci * ri_in 
+                cst.cpd + cst.cpv * rv_in
+                + cst.Cl * rc_in
+                + cst.Ci * ri_in 
             )
     
     # 3. subgrid condensation scheme
     if neb.subg_cond:
-        condensation()
+        condensation(
+            cst,
+            icep,
+            neb,
+            pabst,
+            zz,
+            rhodref,
+            t,
+            rv_in,
+            rv_out,
+            rc_in,
+            rc_out,
+            ri_in,
+            ri_out,
+            rr,
+            rs, 
+            rg, 
+            sigs,
+            lmfconv,
+            mfconv,
+            cldfr,
+            srcs,
+            True,   # ouseri
+            icldfr,
+            wcldfr,
+            ssio,
+            ssiu,
+            ifr,
+            sigqsat, 
+            lv,
+            ls,
+            cph,
+            hlc_hrc,
+            hlc_hcf
+            hli_hrc,
+            hli_hcf,
+            ice_cld_wgt  
+        )
     
     # 3. subgrid condensation scheme
     else:
-        # TODO: pass null 
-        sigs = 0
-        sigqsat = 0
-        condensation()
+        # initialization
+        with computation(PARALLEL), interval(...):
+            sigs[0, 0] = 0
+            sigqsat[0, 0, 0] = 0
+            
+        with computation(PARALLEL), interval(...):
+            condensation(
+            cst,
+            icep,
+            neb,
+            pabst,
+            zz,
+            rhodref,
+            t,
+            rv_in,
+            rv_out,
+            rc_in,
+            rc_out,
+            ri_in,
+            ri_out,
+            rr,
+            rs, 
+            rg, 
+            sigs,
+            lmfconv,
+            mfconv,
+            cldfr,
+            srcs,
+            True,   # ouseri
+            icldfr,
+            wcldfr,
+            ssio,
+            ssiu,
+            ifr,
+            sigqsat, 
+            lv,
+            ls,
+            cph,
+            hlc_hrc,
+            hlc_hcf
+            hli_hrc,
+            hli_hcf,
+            ice_cld_wgt  
+        )
             
 
