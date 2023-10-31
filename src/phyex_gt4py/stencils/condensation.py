@@ -4,9 +4,7 @@ from config import dtype, backend
 from gt4py.cartesian import gtscript, IJ, K
 from phyex_gt4py.constants import Constants
 
-from phyex_gt4py.dimphyex import DIMPhyex
 from phyex_gt4py.functions import compute_ice_frac
-from phyex_gt4py.functions.cloud_fractions import cloud_fraction
 from phyex_gt4py.functions.ice_adjust import latent_heat, _cph
 from phyex_gt4py.functions.icecloud import icecloud
 from phyex_gt4py.functions.erf import erf
@@ -18,14 +16,11 @@ from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
 
 @gtscript.stencil(backend=backend)
 def condensation(
-    Cst: Constants,
+    cst: Constants,
     nebn: Neb, 
-    icep: RainIceParam,
-    hfrac_ice: str,
-    hcondens: str,
-    hlambda3: str,                          # formulation for lambda3 coeff
-    zz: gtscript.Field[dtype],              # height of model levels
+    icep: RainIceParam,                     # formulation for lambda3 coeff
     pabs: gtscript.Field[dtype],            # pressure (Pa)
+    zz: gtscript.Field[dtype],              # height of model levels
     rhodref: gtscript.Field[dtype],   
     t: gtscript.Field[dtype],               # T (K)      
     rv_in: gtscript.Field[dtype],
@@ -115,11 +110,19 @@ def condensation(
     ocnd2: bool = False,                    # logical switch to separate liquid and ice              
     
     csigma: dtype = 0.2,                    # constant in sigma_s parametrization
-    csig_conv: dtype = 3e-3                 # scaling factor for ZSIG_CONV as function of mass flux 
-    
-    
-):
-    
+    csig_conv: dtype = 3e-3,                # scaling factor for ZSIG_CONV as function of mass flux 
+    l0: dtype = 600
+): 
+    src_1d = [ 
+        0.           ,  0.           ,  2.0094444E-04,   0.316670E-03,    
+        4.9965648E-04,  0.785956E-03 ,  1.2341294E-03,   0.193327E-02,    
+        3.0190963E-03,  0.470144E-02 ,  7.2950651E-03,   0.112759E-01,    
+        1.7350994E-02,  0.265640E-01 ,  4.0427860E-02,   0.610997E-01,    
+        9.1578111E-02,  0.135888E+00 ,  0.1991484    ,   0.230756E+00,    
+        0.2850565    ,  0.375050E+00 ,  0.5000000    ,   0.691489E+00,    
+        0.8413813    ,  0.933222E+00 ,  0.9772662    ,   0.993797E+00,    
+        0.9986521    ,  0.999768E+00 ,  0.9999684    ,   0.999997E+00,    
+        1.0000000    ,  1.000000]
     dzref = icep.frmin[25]
     prifact = 0 if ocnd2 else 1
 
@@ -142,10 +145,10 @@ def condensation(
         rt[0, 0, 0] = rv_in + rc_in + ri_in * prifact
         
         if ls is None and lv is None:
-            lv, ls = latent_heat(Cst, t)
+            lv, ls = latent_heat(cst, t)
 
         if cph is None:
-            cpd = _cph(Cst, rv_in, rc_in, ri_in, rr, rs, rg)
+            cpd = _cph(cst, rv_in, rc_in, ri_in, rr, rs, rg)
     
     # Preliminary calculations for computing the turbulent part of Sigma_s   
     if not osigmas:
@@ -156,14 +159,35 @@ def condensation(
                       
         # Set the mixing length scale 
         # @stencil
-        mixing_length_scale(
-            t,
-            zz,
-            t_tropo,
-            z_tropo,
-            z_ground,
-            l
-        )
+        # tropopause height computation
+    with computation(PARALLEL):
+        
+        t_tropo[0, 0] = 400
+        while t_tropo[0, 0] > t[0, 0, 0]:
+            t_tropo[0, 0] = t[0, 0, 0]
+            z_tropo[0, 0] = zz[0, 0, 0]
+            
+    # length scale computation
+    # ground to top
+    # TODO: enable computation on an AROME like grid
+    with computation(BACKWARD):
+        
+        with interval(0, 1):
+            l[0, 0, 0] = 20
+            
+        with interval(1, None):
+        
+            zz_to_ground = zz[0, 0, 0] - z_ground[0, 0]
+
+            # approximate length for boundary layer
+            if zz_to_ground > l0:
+                l[0, 0, 0] = zz_to_ground
+            # gradual decrease of length-scale near and above tropopause
+            if zz_to_ground > 0.9 * (z_tropo[0, 0] - z_ground[0, 0]):
+                l[0, 0, 0] = 0.6 * l[0, 0, -1]
+            # free troposphere 
+            else:
+                l[0, 0, 0] = l0
         
     # line 313 
     if ocnd2:
@@ -178,7 +202,7 @@ def condensation(
                 
         with computation(FORWARD), interval(...):
             icecloud(
-                Cst=Cst,
+                cst=cst,
                 p=pabs,
                 z=zz,
                 dz=dz,
@@ -201,8 +225,8 @@ def condensation(
             
     else:    
         with computation(PARALLEL), interval(...):
-            pv[0, 0] = min(exp(Cst.alpw - Cst.betaw / t[0, 0, 0] - Cst.gamw * log(t[0, 0, 0])), 0.99 * pabs[0, 0, 0])
-            piv[0, 0] = min(exp(Cst.alpi - Cst.betai / t[0, 0, 0]) - Cst.gami * log(t[0, 0, 0]), 0.99 * pabs[0, 0, 0])
+            pv[0, 0] = min(exp(cst.alpw - cst.betaw / t[0, 0, 0] - cst.gamw * log(t[0, 0, 0])), 0.99 * pabs[0, 0, 0])
+            piv[0, 0] = min(exp(cst.alpi - cst.betai / t[0, 0, 0]) - cst.gami * log(t[0, 0, 0]), 0.99 * pabs[0, 0, 0])
                     
 
     if ouseri and not ocnd2:
@@ -211,17 +235,17 @@ def condensation(
             if rc_in[0, 0, 0] > ri_in[0, 0, 0] > 1e-20:
                 frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
                 
-            compute_ice_frac(hfrac_ice, nebn, frac_tmp, t)
+            compute_ice_frac(nebn.frac_ice_adjust, nebn, frac_tmp, t)
             
-            qsl[0, 0] = Cst.Rd / Cst.Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
-            qsi[0, 0] = Cst.Rd / Cst.Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
+            qsl[0, 0] = cst.Rd / cst.Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
+            qsi[0, 0] = cst.Rd / cst.Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
             
             # interpolate bewteen liquid and solid as a function of temperature
             qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
             lvs = (1 - frac_tmp) * lv + frac_tmp * ls
             
             # coefficients a et b
-            ah = lvs * qsl / (Cst.Rv * t[0, 0, 0] ** 2) * (1 + Cst.Rv * qsl / Cst.Rd)
+            ah = lvs * qsl / (cst.Rv * t[0, 0, 0] ** 2) * (1 + cst.Rv * qsl / cst.Rd)
             a = 1 / (1 + lvs / cpd[0, 0, 0] * ah)
             b = ah * a
             sbar = a * (rt[0, 0, 0] - qsl[0, 0] + ah * lvs * (rc_in + ri_in * prifact) / cpd)            
@@ -261,17 +285,17 @@ def condensation(
             with interval(0, 1):
                 dzz = zz[0, 0, 1] - zz[0, 0, 0]
                 drw = rt[0, 0, 1] - rt[0, 0, 0]
-                dtl = tlk[0, 0, 1] - tlk[0, 0, 0] + Cst.gravity0 / cpd[0, 0, 0] * dzz
+                dtl = tlk[0, 0, 1] - tlk[0, 0, 0] + cst.gravity0 / cpd[0, 0, 0] * dzz
              
             with interval(1, -1):
                 dzz = zz[0, 0, 1] - zz[0, 0, -1]
                 drw = rt[0, 0, 1] - rt[0, 0, -1]
-                dtl = tlk[0, 0, 1] - tlk[0, 0, -1] + Cst.gravity0 / cpd[0, 0, 0] * dzz
+                dtl = tlk[0, 0, 1] - tlk[0, 0, -1] + cst.gravity0 / cpd[0, 0, 0] * dzz
                 
             with interval(-1, -2):
                 dzz = zz[0, 0, 0] - zz[0, 0, -1]
                 drw = rt[0, 0, 0] - rt[0, 0, -1]
-                dtl = tlk[0, 0, 0] - tlk[0, 0, -1] + Cst.gravity0 / cpd[0, 0, 0] * dzz
+                dtl = tlk[0, 0, 0] - tlk[0, 0, -1] + cst.gravity0 / cpd[0, 0, 0] * dzz
                 
             with interval(...):
                 # Standard deviation due to convection
@@ -285,19 +309,19 @@ def condensation(
         q1[0, 0] = sbar[0, 0] / sigma[0, 0]
 
     # TODO : line 422 
-    if hcondens == "GAUS":
+    if nebn.condens == "GAUS":
         
         with computation(PARALLEL), interval(...):
         
             # Gaussian probability density function around q1
             # computation of g and gam(=erf(g))
-            gcond, gauv = erf(Cst, q1)
+            gcond, gauv = erf(cst, q1)
         
             # computation of cloud fraction (output)
             cldfr[0, 0, 0] = max(0, min(1, 0.5 * gauv))
         
             # computation of condensate
-            cond_tmp[0, 0] = (exp(-gcond ** 2) - gcond * sqrt(Cst.pi) * gauv) * sigma[0, 0] / sqrt(2 * Cst.pi)
+            cond_tmp[0, 0] = (exp(-gcond ** 2) - gcond * sqrt(cst.pi) * gauv) * sigma[0, 0] / sqrt(2 * cst.pi)
             cond_tmp[0, 0] = max(cond_tmp[0, 0], 0)
         
             sigrc[0, 0, 0] = cldfr[0, 0, 0]
@@ -308,28 +332,26 @@ def condensation(
                 if 1- frac_tmp > 1e-20:
                     autc = (sbar[0, 0] - icep.criautc / (rhodref[0, 0, 0] * (1 - frac_tmp[0, 0]))) / sigma[0, 0]
                 
-                    gautc, gauc = erf(Cst, autc) # approximation of erf function for Gaussian distribution
+                    gautc, gauc = erf(cst, autc) # approximation of erf function for Gaussian distribution
 
                     hlc_hcf[0, 0, 0] = max(0, min(1, 0.5 * gauc))
-                    hlc_hrc[0, 0, 0] = (1 - frac_tmp[0, 0]) * (exp(-gautc ** 2) - gautc * sqrt(Cst.pi) * gauc) * sigma[0, 0] / sqrt(2 * Cst.pi)
+                    hlc_hrc[0, 0, 0] = (1 - frac_tmp[0, 0]) * (exp(-gautc ** 2) - gautc * sqrt(cst.pi) * gauc) * sigma[0, 0] / sqrt(2 * cst.pi)
                     hlc_hrc[0, 0, 0] += icep.criautc / rhodref[0, 0, 0] * hlc_hcf[0, 0, 0]
                     hlc_hrc[0, 0, 0] = max(0, hlc_hrc[0, 0, 0])
                 
-                # TODO : initialize hlc_hcf, hlc_hrc to 0 and remove unused conditions
                 else:
                     hlc_hcf[0, 0, 0] = 0
                     hlc_hrc[0, 0, 0] = 0
                 
             if hli_hcf is not None and hli_hri is not None:
-                # TODO : same as above with hli_hcf and hli_hri (to be factorized)
                 if frac_tmp[0, 0, 0] > 1e-20:
-                    criauti = min(icep.criauti, 10**(icep.acriauti * (t[0, 0, 0] - Cst.tt) + icep.bcriauti))
+                    criauti = min(icep.criauti, 10**(icep.acriauti * (t[0, 0, 0] - cst.tt) + icep.bcriauti))
                     auti = (sbar[0, 0] - criauti / frac_tmp[0, 0]) / sigma[0, 0]
                     
-                    gauti, gaui = erf(Cst, auti)
+                    gauti, gaui = erf(cst, auti)
                     hli_hcf = max(0, min(1, 0.5 * gaui))
                     
-                    hli_hri[0, 0, 0] = frac_tmp[0, 0] * (exp(-gauti**2)- gauti * sqrt(Cst.pi) * gaui)* sigma[0, 0] / sqrt(2 * Cst.pi)
+                    hli_hri[0, 0, 0] = frac_tmp[0, 0] * (exp(-gauti**2)- gauti * sqrt(cst.pi) * gaui)* sigma[0, 0] / sqrt(2 * cst.pi)
                     hli_hri[0, 0, 0] += criauti * hli_hcf[0, 0, 0]
                     hli_hri[0, 0, 0] = max(0, hli_hri[0, 0, 0])
                     
@@ -337,7 +359,7 @@ def condensation(
                     hli_hcf[0, 0, 0] = 0
                     hli_hri[0, 0, 0] = 0
                              
-    elif hcondens == "CB02":
+    elif nebn.condens == "CB02":
         
         with computation(PARALLEL), interval(...):
             
@@ -362,7 +384,7 @@ def condensation(
             inq1 = min(10, max(-22, floor(min(-100, 2*q1[0, 0])))) # inner min/max prevents sigfpe when 2*zq1 does not fit into an int
             inc = 2*q1 - inq1
             
-            sigrc[0, 0, 0] = min(1, (1 - inc) * src_1d[inq1] + inc * src_1d[inq1 + 1])
+            sigrc[0, 0, 0] = min(1, (1 - inc) * src_1d[inq1 + 22] + inc * src_1d[inq1 + 1 + 22])
 
             if hlc_hcf is not None and hlc_hrc is not None:
                 hlc_hcf[0, 0, 0] = 0
@@ -423,52 +445,8 @@ def condensation(
                   
             rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
                     
-    if hlambda3 == "CB":
+    if nebn.clambda3 == "CB":
         with computation(PARALLEL), interval(...):          
-            sigrc[0, 0, 0] *= min(3, max(1, 1 - q1[0, 0]))
-            
-
-# TODO: enable computation on an AROME like grid        
-@gtscript.stencil(backend=backend)           
-def mixing_length_scale(
-    t: gtscript.Field[dtype],               # temperature
-    zz: gtscript.Field[dtype],              # equivalent to zcr
-    t_tropo: gtscript.Field[IJ, dtype],     # champ 2D temperature tropopause   
-    z_tropo: gtscript.Field[IJ, dtype],     # champ 2D hauteur tropopause   
-    z_ground: gtscript.Field[IJ, dtype],    # champ 2D hauteur de référence
-    l: gtscript.Field[dtype],               # mixing length scale 
-    l0: dtype = 600                         # tropospheric length scale
-):
-    
-    # tropopause height computation
-    with computation(PARALLEL):
-        
-        t_tropo[0, 0] = 400
-        while t_tropo[0, 0] > t[0, 0, 0]:
-            t_tropo[0, 0] = t[0, 0, 0]
-            z_tropo[0, 0] = zz[0, 0, 0]
-            
-    # length scale computation
-    # ground to top
-    # TODO: enable computation on an AROME like grid
-    with computation(PARALLEL):
-        
-        with interval(0, 1):
-            l[0, 0, 0] = 20
-            
-        with interval(1, None):
-        
-            zz_to_ground = zz[0, 0, 0] - z_ground[0, 0]
-
-            # approximate length for boundary layer
-            if zz_to_ground > l0:
-                l[0, 0, 0] = zz_to_ground
-            # gradual decrease of length-scale near and above tropopause
-            if zz_to_ground > 0.9 * (z_tropo[0, 0] - z_ground[0, 0]):
-                l[0, 0, 0] = 0.6 * l[0, 0, -1]
-            # free troposphere 
-            else:
-                l[0, 0, 0] = l0
-                
+            sigrc[0, 0, 0] *= min(3, max(1, 1 - q1[0, 0]))                
     
                 
