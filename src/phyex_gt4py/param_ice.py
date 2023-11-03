@@ -61,6 +61,7 @@ class ParamIce:
 
     lpack_interp: bool = field(default=True)
     lpack_micro: bool = field(default=True)
+    lcriauti: bool = field(default=True)
 
     npromicro: dtype_int = field(default=0)
 

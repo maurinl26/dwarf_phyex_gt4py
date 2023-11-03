@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 import numpy as np
 from config import dtype, dtype_int
+from math import gamma
 
 @dataclass
 class RainIceDescr:
@@ -11,9 +12,9 @@ class RainIceDescr:
 
     # Cloud droplet charact.
     ac: dtype = field(init=False)
-    bc: dtype = field(default=3.0)
+    bc: dtype = 3.0
     cc: dtype = field(init=False)
-    dc: dtype = field(default=2.0)
+    dc: dtype = 2.0
 
     # Rain drop charact
     ar: dtype = field(init=False)
@@ -77,7 +78,7 @@ class RainIceDescr:
     alphac2: dtype = 1.0
     nuc2: dtype = 1.0
     
-    lbexc: dtype
+    lbexc: dtype = field(init=False)
     lbc: Tuple[dtype]
 
     # Rain drop distribution parameters
@@ -95,21 +96,21 @@ class RainIceDescr:
     # Snow/agg. distribution parameters
     alphas: dtype = field(default=1.0)
     nus: dtype = field(default=1.0)
-    lbexs: dtype
-    lbs: dtype
-    ns: dtype
+    lbexs: dtype = field(init=False)
+    lbs: dtype = field(init=False)
+    ns: dtype = field(init=False)
 
     # Graupel distribution parameters
     alphag: dtype = 1.0
     nug: dtype = 1.0
-    lbexg: dtype
-    lbg: dtype
+    lbexg: dtype = field(init=False)
+    lbg: dtype = field(init=False)
 
     # Hail distribution parameters
     alphah: dtype = 1.0
     nuh: dtype = 8.0
-    lbexh: dtype
-    lbh: dtype
+    lbexh: dtype = field(init=False)
+    lbh: dtype = field(init=False)
 
     fvelos: dtype = field(default=0.097) # factor for snow fall speed after Thompson
     trans_mp_gammas: dtype = field(init=False) # coefficient to convert lambda for gamma functions
@@ -159,6 +160,28 @@ class RainIceDescr:
         if lsnow:
             self.alphas = 0.214
             self.nus = 43.7
+            
+        self.lbexc = 1 / self.bc
+        self.lbexr = 1 / (-1 - self.br)
+        self.lbexi = 1 / -self.bi
+        self.lbexs = 1 / (self.cxs - self.bs)
+        self.lbexg = 1 / (self.cxg - self.bg)
+        self.lbexh = 1 / (self.cxh - self.bh)
+        
+        # 3.4 Constant for shape parameter
+        momg = lambda alpha, nu, p: gamma(nu + p / alpha) / gamma(nu)
+
+        gamc = momg(self.alphac, self.nuc, 3)
+        gamc2 = momg(self.alphac2, self.nuc2, 3)
+        self.lbc[0] = self.ar * gamc
+        self.lbc[1] = self.ar * gamc2
+        
+        
+        self.lbr = (self.ar * self.ccr * momg(self.alphar, self.nur, self.br)) ** (-self.lbexr)
+        self.lbi = (self.ai * self.cci * momg(self.alphai, self.nui, self.bi)) ** (-self.lbexi)
+        self.lbs = (self.a_s * self.ccs * momg(self.alphas, self.nus, self.bs)) ** (-self.lbexs)
+        self.lbg = (self.ag * self.ccg * momg(self.alphag, self.nug, self.bg)) ** (-self.lbexg)
+        self.lbh = (self.ah * self.cch * momg(self.alphah, self.nuh, self.bh)) ** (-self.lbexh)
             
 
 @dataclass
