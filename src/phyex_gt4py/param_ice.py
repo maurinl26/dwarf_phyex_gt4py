@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
-from config import dtype, dtype_int
+
 import numpy as np
+from config import dtype, dtype_int
+
 
 @dataclass
 class ParamIce:

@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import Optional
-from functions.gamma import gamma
-from functions.ice4_sedimentation_stat import pristine_ice
 
-from config import dtype, dtype_int, backend
+from typing import Optional
 
 import gt4py.cartesian.gtscript as gtscript
-
-from gt4py.cartesian.gtscript import Field, IJ, K
+from config import backend, dtype, dtype_int
+from functions.gamma import gamma
+from functions.ice4_sedimentation_stat import pristine_ice
+from gt4py.cartesian.gtscript import IJ, Field, K
 from ifs_physics_common.framework.stencil import stencil_collection
+
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.dimphyex import DIMPhyex
 from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
@@ -232,7 +232,7 @@ def other_species(
     ptstep: dtype,
     jrr: dtype_int,
     fsed: dtype,
-    exsed: dtype
+    exsed: dtype,
 ):
     qp = sed[0, 0, 1] * tsorhodz[0, 0, 0]
     if pxrt > iced.rtmin[jrr] or qp > iced.rtmin[jrr]:
@@ -263,6 +263,7 @@ def other_species(
 
     return sed
 
+
 @gtscript.function
 def pristine_ice(
     iced: RainIceDescr,
@@ -277,49 +278,66 @@ def pristine_ice(
     prhodref: Field[dtype],
     pdzz: Field[dtype],
     ptstep: Field[dtype],
-    pinvstep: Field[dtype]
+    pinvstep: Field[dtype],
 ):
-    
     qp = sed[0, 0, 1] * tsorhodz[0, 0, 0]
     if pxrt[0, 0, 0] > iced.rtmin[jrr]:
-        
         if parami.lsnow_t:
             if t[0, 0, 0] > cst.tt - 10:
-                lbdas = max(min(iced.lbdas_max, 10**(14.554 - 0.0423*t[0, 0, 0])), iced.lbdas_min) * iced.trans_mp_gammas
-            else: 
-                lbdas = max(min(iced.lbdas_max, 10**(6.226 - 0.0106*t[0, 0, 0])), iced.lbdas_min) * iced.trans_mp_gammas
+                lbdas = (
+                    max(
+                        min(iced.lbdas_max, 10 ** (14.554 - 0.0423 * t[0, 0, 0])),
+                        iced.lbdas_min,
+                    )
+                    * iced.trans_mp_gammas
+                )
+            else:
+                lbdas = (
+                    max(
+                        min(iced.lbdas_max, 10 ** (6.226 - 0.0106 * t[0, 0, 0])),
+                        iced.lbdas_min,
+                    )
+                    * iced.trans_mp_gammas
+                )
         else:
-            lbdas = max(min(iced.lbdas_max, iced.lbs*(prhodref[0, 0, 0]*pxrt[0, 0, 0])**iced.lbexs), iced.lbdas_min)
-                
+            lbdas = max(
+                min(
+                    iced.lbdas_max,
+                    iced.lbs * (prhodref[0, 0, 0] * pxrt[0, 0, 0]) ** iced.lbexs,
+                ),
+                iced.lbdas_min,
+            )
+
         if pxrt[0, 0, 0] > iced.rtmin[jrr]:
             wsedw1 = (
-            icep.fseds * prhodref[0, 0, 0]**(-iced.cexvt)
-            * (1 + (iced.fvelos / lbdas) ** iced.alphas) ** (-iced.nuc + icep.exseds / iced.alphas)
-            * lbdas ** (iced.bs + icep.exseds)
+                icep.fseds
+                * prhodref[0, 0, 0] ** (-iced.cexvt)
+                * (1 + (iced.fvelos / lbdas) ** iced.alphas)
+                ** (-iced.nuc + icep.exseds / iced.alphas)
+                * lbdas ** (iced.bs + icep.exseds)
             )
         else:
             wsedw1 = 0
-        
+
         if qp[0, 0, 0] > iced.rtmin[jrr]:
             wsedw2 = (
-            icep.fseds * prhodref[0, 0, 0] ** (-iced.cexvt) 
-            * (1 + (iced.fvelos / lbdas) ** iced.alphas) ** (-iced.nuc + icep.exseds / iced.alphas)
-            * lbdas ** (iced.bs + icep.exseds)
+                icep.fseds
+                * prhodref[0, 0, 0] ** (-iced.cexvt)
+                * (1 + (iced.fvelos / lbdas) ** iced.alphas)
+                ** (-iced.nuc + icep.exseds / iced.alphas)
+                * lbdas ** (iced.bs + icep.exseds)
             )
         else:
             wsedw2 = 0
     else:
         wsedw1 = 0
         wsedw2 = 0
-        
+
     if wsedw2 != 0:
         sed[0, 0, 0] = fwsed1(wsedw1, pdzz, prhodref, pxrt, pinvstep) + fwsed2(
             wsedw2, pdzz, ptstep, sed[0, 0, 1]
         )
     else:
         sed[0, 0, 0] = fwsed1(wsedw1, pdzz, prhodref, pxrt, pinvstep)
-        
+
     return sed
-    
-    
-    

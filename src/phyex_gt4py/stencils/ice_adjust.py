@@ -1,92 +1,149 @@
 from typing import Tuple
-from config import dtype, dtype_int, backend
 
 import gt4py.cartesian.gtscript as gtscript
+from config import backend, dtype_float, dtype_int
+
 from phyex_gt4py.constants import Constants
+from phyex_gt4py.dimphyex import Phyex
 from phyex_gt4py.functions.ice_adjust import latent_heat
 from phyex_gt4py.nebn import Neb
-
-from phyex_gt4py.dimphyex import DIMPhyex
-from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
+from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
+from phyex_gt4py.stencils.condensation import condensation
 
 
 @gtscript.stencil(backend=backend)
 def ice_adjust(
-    D: DIMPhyex,
     cst: Constants,
     parami: ParamIce,
     icep: RainIceParam,
-    iced: RainIceDescr,
     neb: Neb,
     compute_srcs: bool,
     itermax: dtype_int, 
-    tstep: dtype,
-    rhodref: gtscript.Field[dtype],
+    tstep: dtype_float,                   # Double timestep
+    nrr: dtype_int,                 # Number of moist variables
+    lmfconv: bool, # size (mfconv) != 0
+    sigqsat: gtscript.Field[dtype_float], # coeff applied to qsat variance
+    rhodj: gtscript.Field[dtype_float],   # dry density x jacobian
+    exnref: gtscript.Field[dtype_float],  # ref exner pression
+    rhodref: gtscript.Field[dtype_float], #        
+    sigs: gtscript.Field[dtype_float],    # Sigma_s at time t
+    mfconv: gtscript.Field[dtype_float],  # convective mass flux
+    pabs_t: gtscript.Field[dtype_float],  # absolute pressure at t
+    zz: gtscript.Field[dtype_float],      # height of model layer
+    exn: gtscript.Field[dtype_float],     # exner function
     
-    th: gtscript.Field[dtype],
-    th_out: gtscript.Field[dtype],
-    exn: gtscript.Field[dtype],
-    rv_in: gtscript.Field[dtype],
-    rc_in: gtscript.Field[dtype],
-    ri_in: gtscript.Field[dtype],
-    rv_out: gtscript.Field[dtype],
-    rc_out: gtscript.Field[dtype],
-    ri_out: gtscript.Field[dtype],
-    cph: gtscript.Field[dtype],
-    exnref: gtscript.Field[dtype],
-    ris: gtscript.Field[dtype],
-    cldfr: gtscript.Field[dtype],
-    srcs: gtscript.Field[dtype],
-    rc_mf: gtscript.Field[dtype],
-    cf_mf: gtscript.Field[dtype],
-    ri_mf: gtscript.Field[dtype],
+    cf_mf: gtscript.Field[dtype_float],   # convective mass flux fraction
+    rc_mf: gtscript.Field[dtype_float],   # convective mass flux liquid mixing ratio
+    ri_mf: gtscript.Field[dtype_float],   # convective mass flux ice mixing ratio
     
-    hlc_hrc: gtscript.Field[dtype],
-    hlc_hcf: gtscript.Field[dtype],
-    hli_hri: gtscript.Field[dtype],
-    hli_hcf: gtscript.Field[dtype],
+       
+      
+    rv: gtscript.Field[dtype_float],   # water vapour m.r. to adjust 
+    rc: gtscript.Field[dtype_float],   # cloud water m.r. to adjust
+    ri: gtscript.Field[dtype_float],   # cloud ice m.r. to adjust
+    rvs: gtscript.Field[dtype_float],  # water vapour m.r. source
+    rcs: gtscript.Field[dtype_float],  # cloud water m.r. source
+    ris: gtscript.Field[dtype_float],  # cloud ice m.r. at t+1
+    rv_out: gtscript.Field[dtype_float],  # water vapour m.r. source
+    rc_out: gtscript.Field[dtype_float],  # cloud water m.r. source
+    ri_out: gtscript.Field[dtype_float],  # cloud ice m.r. source
+    th: gtscript.Field[dtype_float],   # theta to adjust
+    ths: gtscript.Field[dtype_float],  # theta source
+    th_out: gtscript.Field[dtype_float], # theta out
+    cldfr: gtscript.Field[dtype_float],
+    srcs: gtscript.Field[dtype_float],    # second order flux s at time t+1
+
+    # Out
+    icldfr: gtscript.Field[dtype_float],          # ice cloud fraction
+    wcldfr: gtscript.Field[dtype_float],          # water or mixed-phase cloud fraction
+    
+    ifr: gtscript.Field[dtype_float],             # ratio cloud ice moist part to dry part
+    ssio: gtscript.Field[dtype_float],            # super-saturation with respect to ice in the super saturated fraction
+    ssiu: gtscript.Field[dtype_float],            # sub-saturation with respect to ice in the subsaturated fraction
+    
+    rr: gtscript.Field[dtype_float],              # rain water m.r. to adjust
+    rs: gtscript.Field[dtype_float],              # aggregate m.r. to adjust
+    rg: gtscript.Field[dtype_float],              # graupel m.r. to adjust
+    rh: gtscript.Field[dtype_float],              # hail m.r. to adjust
+    
+    ice_cld_wgt: gtscript.Field[dtype_float],     # 
+
+    hlc_hrc: gtscript.Field[dtype_float],
+    hlc_hcf: gtscript.Field[dtype_float],
+    hli_hri: gtscript.Field[dtype_float],
+    hli_hcf: gtscript.Field[dtype_float],
     
     # Temporary fields 
-    rv_tmp: gtscript.Field[dtype],
-    ri_tmp: gtscript.Field[dtype],
-    rc_tmp: gtscript.Field[dtype],
+    rv_tmp: gtscript.Field[dtype_float],
+    ri_tmp: gtscript.Field[dtype_float],
+    rc_tmp: gtscript.Field[dtype_float],
+    t_tmp: gtscript.Field[dtype_float],
+    sigqsat_tmp: gtscript.Field[dtype_float],     # 
+    srcs_tmp: gtscript.Field[dtype_float],        # 
+    sigs_tmp: gtscript.Field[dtype_float],        
+    cph: gtscript.Field[dtype_float],             # guess of the CPh for the mixing
+    lv: gtscript.Field[dtype_float],              # guess of the Lv at t+1
+    ls: gtscript.Field[dtype_float],              # guess of the Ls at t+1
+    
+    criaut: gtscript.Field[dtype_float],          # autoconversion thresholds
+    hcf: gtscript.Field[dtype_float],             # 
+    hr: gtscript.Field[dtype_float],              
+):   
+    """_summary_
 
-):    
+    Args:
+        cst (Constants): physical constants
+        parami (ParamIce): mixed phase cloud parameters
+        icep (RainIceParam): microphysical factors used in the warm and cold schemes
+        neb (Neb): constants for nebulosity calculations
+        compute_srcs (bool): boolean to compute second order flux
+        itermax (dtype_int): _description_
+        tstep (dtype_float): double time step
+        krr (int)
+        icldfr (gtscript.Field[dtype_float]): _description_
+        hlc_hcf (gtscript.Field[dtype_float]): _description_
+        hli_hri (gtscript.Field[dtype_float]): _description_
+        hli_hcf (gtscript.Field[dtype_float]): _description_
+        rv_tmp (gtscript.Field[dtype_float]): _description_
+        ri_tmp (gtscript.Field[dtype_float]): _description_
+        rc_tmp (gtscript.Field[dtype_float]): _description_
+        sigqsat_tmp (gtscript.Field[dtype_float]): _description_
+        cph (gtscript.Field[dtype_float]): _description_
+    """
+     
 
     # 2.3 Compute the variation of mixing ratio
     with computation(PARALLEL), interval(...):
-        t = th[0, 0, 0] * exn[0, 0, 0]
-        lv, ls = latent_heat(cst, t)
+        t_tmp = th[0, 0, 0] * exn[0, 0, 0]
+        lv, ls = latent_heat(cst, t_tmp)
         
     # jiter  = 0
-    rv_tmp, rc_tmp, ri_tmp = iteration(rv_in, rc_in, ri_in, rv_tmp, rc_tmp, ri_tmp)
+    rv_tmp, rc_tmp, ri_tmp = iteration(rv, rv, rv, rv_tmp, rc_tmp, ri_tmp)
               
     # jiter > 0 
     for jiter in range(1, itermax):
-        backup(rv_tmp, rc_tmp, ri_tmp)
-        iteration(rv_tmp, rc_tmp, ri_tmp, rv_out, rc_out, ri_out) 
+        # backup(rv_tmp, rc_tmp, ri_tmp)
+        iteration(rv_tmp, rc_tmp, ri_tmp, rv_tmp, rc_tmp, ri_tmp, nrr) 
         
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
     with computation(PARALLEL), interval(...):
         
         # 5.0 compute the variation of mixing ratio
-        w1 = (rc_out[0, 0, 0] - rc_in[0, 0, 0]) / tstep
-        w2 = (ri_out[0, 0, 0] - ri_in[0, 0, 0]) / tstep
+        w1 = (rc_tmp[0, 0, 0] - rc[0, 0, 0]) / tstep
+        w2 = (ri_tmp[0, 0, 0] - ri[0, 0, 0]) / tstep
 
         # 5.1 compute the sources
         w1 = max(w1, - rcs[0, 0, 0]) if w1 > 0 else min(w1, rvs[0, 0, 0])
-        rvs -= w1
-        rcs += w1
-        ths += w1 * lv[0, 0, 0] / (cph[0, 0, 0] * exnref[0, 0, 0])
+        rvs[0, 0, 0] -= w1
+        rc_tmp[0, 0, 0] += w1
+        ths[0, 0, 0] += w1 * lv[0, 0, 0] / (cph[0, 0, 0] * exnref[0, 0, 0])
         
-        w2 = max(w2, - ris[0, 0, 0]) if w1 > 0 else min(w2, ris[0, 0, 0])
+        w2 = max(w2, - ris[0, 0, 0]) if w1 > 0 else min(w2, rvs[0, 0, 0])
         
         if not neb.subg_cond:
         
-            
             cldfr[0, 0, 0] = 1 if rcs[0, 0, 0] + ris[0, 0, 0] > 1e-12 / tstep else 0
-            if compute_srcs:
-                srcs[0, 0, 0] = cldfr[0, 0, 0]
+            srcs[0, 0, 0] = cldfr[0, 0, 0] if compute_srcs else None
                          
         else: 
         
@@ -117,7 +174,7 @@ def ice_adjust(
                 )
                     
             if hli_hri is not None and hli_hcf is not None:
-                criaut = min(icep.criauti, 10**(icep.acriauti * (t[0, 0, 0] - cst.tt) + icep.bcriauti))
+                criaut = min(icep.criauti, 10**(icep.acriauti * (t_tmp[0, 0, 0] - cst.tt) + icep.bcriauti))
                 hli_hri, hli_hcf, w2 = subgrid_mf(
                     criaut, 
                     parami.subg_mf_pdf,
@@ -134,14 +191,20 @@ def ice_adjust(
             w2 = ri_mf
             
             if w1 + w2 > rv_out[0, 0, 0]:
-                w1 *= rv_out / (w1 + w2)
-                w2 = rv_out - w1
+                w1 *= rv_tmp / (w1 + w2)
+                w2 = rv_tmp - w1
             
-            rc_out[0, 0, 0] += w1
-            ri_out[0, 0, 0] += w2
-            rv_out[0, 0, 0] -= (w1 + w2)
-            t += (w1 * lv + w2 * ls) /cph
+            rc_tmp[0, 0, 0] += w1
+            ri_tmp[0, 0, 0] += w2
+            rv_tmp[0, 0, 0] -= (w1 + w2)
+            t_tmp += (w1 * lv + w2 * ls) /cph
             
+            # TODO :  remove unused out variables 
+            rv_out[0, 0, 0] = rv_tmp[0, 0, 0]
+            ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
+            rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
+            th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
+                    
 @gtscript.function()
 def backup(
     rv_tmp: gtscript.Field,
@@ -176,24 +239,24 @@ def backup(
             
 @gtscript.function
 def subgrid_mf(
-    criaut: gtscript.Field[dtype],
-    subg_mf_pdf: gtscript.Field[dtype],
-    hl_hr: gtscript.Field[dtype],
-    hl_hc: gtscript.Field[dtype],
-    cf_mf: gtscript.Field[dtype],
-    w: gtscript.Field[dtype],
-    tstep: dtype,     
+    criaut: gtscript.Field[dtype_float],
+    subg_mf_pdf: gtscript.Field[dtype_float],
+    hl_hr: gtscript.Field[dtype_float],
+    hl_hc: gtscript.Field[dtype_float],
+    cf_mf: gtscript.Field[dtype_float],
+    w: gtscript.Field[dtype_float],
+    tstep: dtype_float,     
 ) -> Tuple[gtscript.Field]:   
-    """_summary_
+    """Compute subgrid mass fluxes
 
     Args:
-        criaut (gtscript.Field[dtype]): _description_
-        subg_mf_pdf (gtscript.Field[dtype]): _description_
-        hl_hr (gtscript.Field[dtype]): _description_
-        hl_hc (gtscript.Field[dtype]): _description_
-        cf_mf (gtscript.Field[dtype]): _description_
-        w (gtscript.Field[dtype]): _description_
-        tstep (dtype): time step
+        criaut (gtscript.Field[dtype_float]): _description_
+        subg_mf_pdf (gtscript.Field[dtype_float]): _description_
+        hl_hr (gtscript.Field[dtype_float]): _description_
+        hl_hc (gtscript.Field[dtype_float]): _description_
+        cf_mf (gtscript.Field[dtype_float]): _description_
+        w (gtscript.Field[dtype_float]): _description_
+        tstep (dtype_float): time step
 
     Returns:
         _type_: _description_
@@ -233,28 +296,41 @@ def iteration(
     neb: Neb,
     icep: RainIceParam,
     parami: ParamIce,
-    pabs: gtscript.Field[dtype],
-    zz: gtscript.Field[dtype],
-    rhodref: gtscript.Field[dtype],
-    t: gtscript.Field[dtype],
-    rv_in: gtscript.Field[dtype],
-    ri_in: gtscript.Field[dtype],
-    rc_in: gtscript.Field[dtype],
-    rv_out: gtscript.Field[dtype],
-    rc_out: gtscript.Field[dtype],
-    ri_out: gtscript.Field[dtype],
-    rr: gtscript.Field[dtype],
-    rs: gtscript.Field[dtype],
-    rg: gtscript.Field[dtype],
-    rh: gtscript.Field[dtype],
-    sigs: gtscript.Field[dtype],
+    krr: dtype_int,
     lmfconv: bool,
-    mfconv: gtscript.Field[dtype],
-    cldfr: gtscript.Field[dtype],
+    pabs: gtscript.Field[dtype_float],
+    zz: gtscript.Field[dtype_float],
+    rhodref: gtscript.Field[dtype_float],
+    t_tmp: gtscript.Field[dtype_float],
+    lv: gtscript.Field[dtype_float],
+    ls: gtscript.Field[dtype_float],
+    rv_in: gtscript.Field[dtype_float],
+    ri_in: gtscript.Field[dtype_float],
+    rc_in: gtscript.Field[dtype_float],
+    rv_out: gtscript.Field[dtype_float],
+    rc_out: gtscript.Field[dtype_float],
+    ri_out: gtscript.Field[dtype_float],
+    rr: gtscript.Field[dtype_float],
+    rs: gtscript.Field[dtype_float],
+    rg: gtscript.Field[dtype_float],
+    rh: gtscript.Field[dtype_float],
+    sigs: gtscript.Field[dtype_float],
+    mfconv: gtscript.Field[dtype_float],
+    cldfr: gtscript.Field[dtype_float],
     
-    sigqsat: gtscript.Field[dtype],
-    krr: dtype_int
-    
+    sigqsat: gtscript.Field[dtype_float],
+    srcs: gtscript.Field[dtype_float],
+    icldfr: gtscript.Field[dtype_float],
+    wcldfr: gtscript.Field[dtype_float],
+    ssio: gtscript.Field[dtype_float],
+    ssiu: gtscript.Field[dtype_float],
+    ifr: gtscript.Field[dtype_float],
+
+    hlc_hrc: gtscript.Field[dtype_float],
+    hlc_hcf: gtscript.Field[dtype_float],
+    hli_hri: gtscript.Field[dtype_float],
+    hli_hcf: gtscript.Field[dtype_float],
+    ice_cld_wgt: gtscript.Field[dtype_float],    
 ):
     
     # 2.4 specific heat for moist air at t+1
@@ -293,42 +369,45 @@ def iteration(
     # 3. subgrid condensation scheme
     if neb.subg_cond:
         condensation(
-            cst,
-            icep,
-            neb,
-            pabst,
-            zz,
-            rhodref,
-            t,
-            rv_in,
-            rv_out,
-            rc_in,
-            rc_out,
-            ri_in,
-            ri_out,
-            rr,
-            rs, 
-            rg, 
-            sigs,
-            lmfconv,
-            mfconv,
-            cldfr,
-            srcs,
-            True,   # ouseri
-            icldfr,
-            wcldfr,
-            ssio,
-            ssiu,
-            ifr,
-            sigqsat, 
-            lv,
-            ls,
-            cph,
-            hlc_hrc,
-            hlc_hcf
-            hli_hrc,
-            hli_hcf,
-            ice_cld_wgt  
+            cst=cst,
+            nebn=neb,
+            icep=icep,
+            parami=parami,
+            lmfconv=lmfconv,
+            ouseri=True,
+            pabs=pabs,
+            zz=zz,
+            rhodref=rhodref,
+            t=t_tmp,
+            rv_in=rv_in,
+            rv_out=rv_out,
+            rc_in=rc_in,
+            rc_out=rc_out,
+            ri_in=ri_in,
+            ri_out=ri_out,
+            rr=rr,
+            rs=rs, 
+            rg=rg, 
+            sigs=sigs,
+            mfconv=mfconv,
+            cldfr=cldfr,
+            sigrc=srcs,
+            icldfr=icldfr,
+            wcldfr=wcldfr,
+            ls=ls,
+            lv=lv,
+            cph=cph,
+            ifr=ifr,
+            sigqsat=sigqsat,   
+            ssio=ssio,
+            ssiu=ssiu,
+            hlc_hrc=hlc_hrc,
+            hlc_hcf=hlc_hcf,
+            hli_hri=hli_hri,
+            hli_hcf=hli_hcf,
+            ice_cld_wgt=ice_cld_wgt,
+                
+            # Temp fields (to initiate)
         )
     
     # 3. subgrid condensation scheme
@@ -340,42 +419,76 @@ def iteration(
             
         with computation(PARALLEL), interval(...):
             condensation(
-            cst,
-            icep,
-            neb,
-            pabst,
-            zz,
-            rhodref,
-            t,
-            rv_in,
-            rv_out,
-            rc_in,
-            rc_out,
-            ri_in,
-            ri_out,
-            rr,
-            rs, 
-            rg, 
-            sigs,
-            lmfconv,
-            mfconv,
-            cldfr,
-            srcs,
-            True,   # ouseri
-            icldfr,
-            wcldfr,
-            ssio,
-            ssiu,
-            ifr,
-            sigqsat, 
-            lv,
-            ls,
-            cph,
-            hlc_hrc,
-            hlc_hcf
-            hli_hrc,
-            hli_hcf,
-            ice_cld_wgt  
+                cst=cst,
+                nebn=neb,
+                icep=icep,
+                parami=parami,
+                lmfconv=lmfconv,
+                ouseri=True,
+                pabs=pabs,
+                zz=zz,
+                rhodref=rhodref,
+                t=t_tmp,
+                rv_in=rv_in,
+                rv_out=rv_out,
+                rc_in=rc_in,
+                rc_out=rc_out,
+                ri_in=ri_in,
+                ri_out=ri_out,
+                rr=rr,
+                rs=rs, 
+                rg=rg, 
+                sigs=sigs,
+                mfconv=mfconv,
+                cldfr=cldfr,
+                sigrc=srcs,
+                icldfr=icldfr,
+                wcldfr=wcldfr,
+                ls=ls,
+                lv=lv,
+                cph=cph,    # zcph
+                ifr=ifr,
+                sigqsat=sigqsat, # zsigqsat   
+                ssio=ssio,
+                ssiu=ssiu,
+                hlc_hrc=hlc_hrc,
+                hlc_hcf=hlc_hcf,
+                ice_cld_wgt=ice_cld_wgt, 
+                
+                # Tmp fields used in routine
+                # prifact=,
+                # cpd=, 
+                # tlk=, 
+                # rt=, 
+                # pv=, 
+                # piv=, 
+                # qsl=, 
+                # qsi=,
+                # t_tropo=, 
+                # z_tropo=, 
+                # z_ground=, 
+                # l=, 
+                # frac_tmp=,
+                # cond_tmp=, 
+                # a=, 
+                # b=, 
+                # sbar=, 
+                # sigma=, 
+                # q1=, 
+                # esatw_t=, 
+                # ardum=, 
+                # ardum2=, 
+                # dz=, 
+                # cldini=, 
+                # dum4=, 
+                # lwinc=, 
+                # rsp=, 
+                # rsw=, 
+                # rfrac=, 
+                # rsdif=, 
+                # rcold=,
+                # dzfact=, 
+                # dzref=, 
+                # inq1=, 
+                # inc=,  
         )
-            
-
