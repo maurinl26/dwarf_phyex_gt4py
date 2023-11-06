@@ -61,7 +61,6 @@ def condensation(
     ice_cld_wgt: gtscript.Field[dtype_float],  # in
     # Temporary fields
     cpd: gtscript.Field[dtype_float],
-    tlk: gtscript.Field[dtype_float],  # working array for T_l
     rt: gtscript.Field[dtype_float],  # work array for total water mixing ratio
     pv: gtscript.Field[dtype_float],  # thermodynamics
     piv: gtscript.Field[dtype_float],  # thermodynamics
@@ -121,7 +120,6 @@ def condensation(
         cph (Optional[gtscript.Field[dtype_float]]): _description_
         ifr (gtscript.Field[dtype_float]): _description_
         ice_cld_wgt (gtscript.Field[dtype_float]): _description_
-        tlk (gtscript.Field[dtype_float]): _description_
         t_tropo (gtscript.Field[IJ, dtype_float]): _description_
         sbar (gtscript.Field[IJ, dtype_float]): _description_
         sigma (gtscript.Field[IJ, dtype_float]): _description_
@@ -205,10 +203,6 @@ def condensation(
 
     # Preliminary calculations for computing the turbulent part of Sigma_s
     if not nebn.sigmas:
-        with computation(PARALLEL), interval(...):
-            # Temperature at saturation
-            tlk = t[0, 0, 0] - lv * rc_in / cpd - ls * ri_in / cpd * prifact
-
         # tropopause height computation
         with computation(BACKWARD):
             t_tropo[0, 0] = 400
@@ -336,20 +330,24 @@ def condensation(
                     sigma = sigs[0, 0, 0] if nebn.statnw else 2 * sigs[0, 0, 0]
 
     else:
+        
         # not nebn osigmas
         # Parametrize Sigma_s with first order closure
         with computation(FORWARD):
             with interval(0, 1):
+                tlk = t[0, 0, 0] - lv * rc_in / cpd - ls * ri_in / cpd * prifact
                 dzz = zz[0, 0, 1] - zz[0, 0, 0]
                 drw = rt[0, 0, 1] - rt[0, 0, 0]
                 dtl = tlk[0, 0, 1] - tlk[0, 0, 0] + cst.gravity0 / cpd[0, 0, 0] * dzz
 
             with interval(1, -1):
+                tlk = t[0, 0, 0] - lv * rc_in / cpd - ls * ri_in / cpd * prifact
                 dzz = zz[0, 0, 1] - zz[0, 0, -1]
                 drw = rt[0, 0, 1] - rt[0, 0, -1]
                 dtl = tlk[0, 0, 1] - tlk[0, 0, -1] + cst.gravity0 / cpd[0, 0, 0] * dzz
 
             with interval(-1, -2):
+                tlk = t[0, 0, 0] - lv * rc_in / cpd - ls * ri_in / cpd * prifact
                 dzz = zz[0, 0, 0] - zz[0, 0, -1]
                 drw = rt[0, 0, 0] - rt[0, 0, -1]
                 dtl = tlk[0, 0, 0] - tlk[0, 0, -1] + cst.gravity0 / cpd[0, 0, 0] * dzz
