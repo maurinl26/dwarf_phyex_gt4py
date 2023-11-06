@@ -4,14 +4,14 @@ from config import backend, dtype_float, dtype_int
 from gt4py.cartesian import IJ, K, gtscript
 
 from phyex_gt4py.constants import Constants
-from phyex_gt4py.functions import compute_ice_frac
+from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
 from phyex_gt4py.functions.erf import erf
 from phyex_gt4py.functions.ice_adjust import _cph, latent_heat
 from phyex_gt4py.functions.icecloud import icecloud
 from phyex_gt4py.functions.temperature import update_temperature
 from phyex_gt4py.functions.tiwmx import esati, esatw
 from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
+from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
 
 
 @gtscript.stencil(backend=backend)
@@ -66,7 +66,6 @@ def condensation(
     piv: gtscript.Field[dtype_float],  # thermodynamics
     qsl: gtscript.Field[dtype_float],  # thermodynamics
     qsi: gtscript.Field[dtype_float],
-    t_tropo: gtscript.Field[IJ, dtype_float],  # temperature at tropopause
     z_tropo: gtscript.Field[IJ, dtype_float],  # height at tropopause
     z_ground: gtscript.Field[IJ, dtype_float],  # height at ground level (orography)
     l: gtscript.Field[dtype_float],  # length scale
@@ -77,68 +76,17 @@ def condensation(
     sbar: gtscript.Field[IJ, dtype_float],
     sigma: gtscript.Field[IJ, dtype_float],
     q1: gtscript.Field[IJ, dtype_float],
-    # related to ocnd2 ice cloud calculation
-    esatw_t: gtscript.Field[IJ, dtype_float],
-    ardum: gtscript.Field[IJ, dtype_float],
-    ardum2: gtscript.Field[IJ, dtype_float],
+    ardum: gtscript.Field[IJ, dtype_float], # related to ocnd2 ice cloud calculation
     dz: gtscript.Field[IJ, dtype_float],  # Layer thickness
-    cldini: gtscript.Field[IJ, dtype_float],  # To be initialized for icecloud
     dum4: gtscript.Field[dtype_float],
-    lwinc: gtscript.Field[IJ, dtype_float],
-    # related to ocnd2 noise check
-    rsp: dtype_float,
-    rsw: dtype_float,
-    rfrac: dtype_float,
-    rsdif: dtype_float,
-    rcold: dtype_float,
-    dzfact: dtype_float,  # lhgt_qs
-    dzref: dtype_float,
-    inq1: dtype_int,
-    inc: dtype_float,
-    ouseri: bool,  # switch to compute both liquid and solid condensate (True) or only solid condensate (False)
+    rsp: dtype_float = 1, # TODO :  find initialization value in fortran code # related to ocnd2 noise check
+    rsw: dtype_float = 1, # TODO: find init value in fortran code # related to ocnd2 noise check
+    ouseri: bool = True,  # switch to compute both liquid and solid condensate (True) or only solid condensate (False)
     csigma: dtype_float = 0.2,  # constant in sigma_s parametrization
     csig_conv: dtype_float = 3e-3,  # scaling factor for ZSIG_CONV as function of mass flux
     l0: dtype_float = 600,
 ):
-    """_summary_
-
-    Args:
-        cst (Constants): physical constants
-        nebn (Neb): parameters related to
-        icep (RainIceParam): _description_
-        pabs (gtscript.Field[dtype_float]): _description_
-        t (gtscript.Field[dtype_float]): _description_
-        rc_in (gtscript.Field[dtype_float]): _description_
-        ri_in (gtscript.Field[dtype_float]): _description_
-        rv_out (gtscript.Field[dtype_float]): _description_
-        rc_out (gtscript.Field[dtype_float]): _description_
-        ri_out (gtscript.Field[dtype_float]): _description_
-        rs (gtscript.Field[dtype_float]): _description_
-        cldfr (gtscript.Field[dtype_float]): _description_
-        sigrc (gtscript.Field[dtype_float]): _description_
-        lv (Optional[gtscript.Field[dtype_float]]): _description_
-        cph (Optional[gtscript.Field[dtype_float]]): _description_
-        ifr (gtscript.Field[dtype_float]): _description_
-        ice_cld_wgt (gtscript.Field[dtype_float]): _description_
-        t_tropo (gtscript.Field[IJ, dtype_float]): _description_
-        sbar (gtscript.Field[IJ, dtype_float]): _description_
-        sigma (gtscript.Field[IJ, dtype_float]): _description_
-        q1 (gtscript.Field[IJ, dtype_float]): _description_
-        esatw_t (gtscript.Field[IJ, dtype_float]): _description_
-        ardum (gtscript.Field[IJ, dtype_float]): _description_
-        ardum2 (gtscript.Field[IJ, dtype_float]): _description_
-        dz (gtscript.Field[IJ, dtype_float]): layer thickness
-        lwinc (gtscript.Field[IJ, dtype_float]): _description_
-        rsp (dtype_float): _description_
-        rsw (dtype_float): _description_
-        rfrac (dtype_float): _description_
-        rsdif (dtype_float): _description_
-        rcold (dtype_float): _description_
-        dzfact (dtype_float): _description_
-        inq1 (dtype_int): _description_
-        inc (dtype_float): _description_
-        ouseri (bool): _description_
-    """
+    
 
     src_1d = [
         0.0,
@@ -176,11 +124,10 @@ def condensation(
         1.0000000,
         1.000000,
     ]
-    dzref = icep.frmin[25]
     prifact = 0 if parami.cnd2 else 1
 
     # Initialize values
-    with computation(PARALLEL), interval(...):
+    with computation(), interval(...):
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
@@ -188,8 +135,6 @@ def condensation(
         ri_out[0, 0, 0] = 0
 
         # local fields
-        ardum2[0, 0] = 0
-        cldini[0, 0, 0] = 0
         ifr[0, 0, 0] = 10
         frac_tmp[0, 0] = 0
 
@@ -202,10 +147,11 @@ def condensation(
             cpd = _cph(cst, rv_in, rc_in, ri_in, rr, rs, rg)
 
     # Preliminary calculations for computing the turbulent part of Sigma_s
+    # not used by AROME
     if not nebn.sigmas:
         # tropopause height computation
         with computation(BACKWARD):
-            t_tropo[0, 0] = 400
+            t_tropo = 400
             while t_tropo[0, 0] > t[0, 0, 0]:
                 t_tropo[0, 0] = t[0, 0, 0]
                 z_tropo[0, 0] = zz[0, 0, 0]
@@ -229,7 +175,7 @@ def condensation(
                 else:
                     l[0, 0, 0] = l0
 
-    # line 313
+    # not AROME
     if parami.lcond2:
         with computation(FORWARD):
             with interval(0, 1):
@@ -239,6 +185,8 @@ def condensation(
                 dz = zz[0, 0, 1] - zz[0, 0, 0]
 
         with computation(FORWARD), interval(...):
+            ardum2 = 0
+            cldini = 0
             icecloud(
                 cst=cst,
                 p=pabs,
@@ -256,13 +204,14 @@ def condensation(
                 rsi=ardum,
             )
 
-        with computation(PARALLEL), interval(...):
-            esatw_t[0, 0] = esatw(t[0, 0, 0])
-            pv[0, 0] = min(esatw_t[0, 0], 0.99 * pabs[0, 0, 0])
+        with computation(FORWARD), interval(...):
+            esatw_t = esatw(t[0, 0, 0])
+            pv[0, 0] = min(esatw_t[0, 0, 0], 0.99 * pabs[0, 0, 0])
             piv[0, 0] = min(esati(t[0, 0, 0]), 0.99 * pabs[0, 0, 0])
 
+    # AROME
     else:
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             pv[0, 0] = min(
                 exp(cst.alpw - cst.betaw / t[0, 0, 0] - cst.gamw * log(t[0, 0, 0])),
                 0.99 * pabs[0, 0, 0],
@@ -272,12 +221,13 @@ def condensation(
                 0.99 * pabs[0, 0, 0],
             )
 
+    # AROME
     if ouseri and not parami.lcond2:
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             if rc_in[0, 0, 0] > ri_in[0, 0, 0] > 1e-20:
                 frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
 
-            compute_ice_frac(nebn.frac_ice_adjust, nebn, frac_tmp, t)
+            _, frac_tmp = compute_frac_ice(nebn.frac_ice_adjust, nebn, frac_tmp, t)
 
             qsl[0, 0] = cst.Rd / cst.Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
             qsi[0, 0] = cst.Rd / cst.Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
@@ -295,8 +245,9 @@ def condensation(
             )
 
     # Meso-NH turbulence scheme
+    # Used in AROME
     if nebn.sigmas:
-        with computation(PARALLEL):
+        with computation(FORWARD):
             if sigqsat[0, 0, 0] != 0:
                 # dtype_intialization
                 if nebn.statnw:
@@ -305,7 +256,7 @@ def condensation(
                             dzfact = max(
                                 icep.frmin[23],
                                 min(
-                                    icep.frmin[24], (zz[0, 0, 0] - zz[0, 0, 1]) / dzref
+                                    icep.frmin[24], (zz[0, 0, 0] - zz[0, 0, 1]) / icep.frmin[25]
                                 ),
                             )
                         with interval(-1, -2):
@@ -313,7 +264,7 @@ def condensation(
                                 icep.frmin[23],
                                 min(
                                     icep.frmin[24],
-                                    (zz[0, 0, 0] - zz[0, 0, 1]) * 0.8 / dzref,
+                                    (zz[0, 0, 0] - zz[0, 0, 1]) * 0.8 / icep.frmin[25],
                                 ),
                             )
                     else:
@@ -329,9 +280,10 @@ def condensation(
                 with interval(...):
                     sigma = sigs[0, 0, 0] if nebn.statnw else 2 * sigs[0, 0, 0]
 
+    # not nebn osigmas
+    # Not used by AROME
     else:
         
-        # not nebn osigmas
         # Parametrize Sigma_s with first order closure
         with computation(FORWARD):
             with interval(0, 1):
@@ -365,14 +317,15 @@ def condensation(
                     )
                 )
 
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         sigma[0, 0] = max(1e-10, sigma[0, 0])
 
         # normalized saturation deficit
         q1[0, 0] = sbar[0, 0] / sigma[0, 0]
 
+    # not used by AROME
     if nebn.condens == "GAUS":
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             # Gaussian probability density function around q1
             # computation of g and gam(=erf(g))
             gcond, gauv = erf(cst, q1)
@@ -442,8 +395,9 @@ def condensation(
                     hli_hcf[0, 0, 0] = 0
                     hli_hri[0, 0, 0] = 0
 
+    # AROME nebn.condense = CB02
     elif nebn.condens == "CB02":
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             if q1 > 0 and q1 <= 2:
                 cond_tmp[0, 0] = min(
                     exp(-1) + 0.66 * q1[0, 0] + 0.086 * q1[0, 0] ** 2, 2
@@ -481,9 +435,9 @@ def condensation(
                 hli_hcf[0, 0, 0] = 0
                 hli_hri[0, 0, 0] = 0
 
-    # ref -> line 515
+    # AROME lcond2 = False
     if not parami.lcond2:
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             rc_out[0, 0, 0] = (1 - frac_tmp[0, 0]) * cond_tmp[0, 0]  # liquid condensate
             ri_out[0, 0, 0] = frac_tmp[0, 0] * cond_tmp[0, 0]  # solid condensate
             t[0, 0, 0] = update_temperature(
@@ -498,11 +452,12 @@ def condensation(
             with interval(1, None):
                 dum4[0, 0, 0] = ri_in[0, 0, 0] + 0.5 * rs[0, 0, 0] + 0.25 * rg[0, 0, 0]
 
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             rc_out[0, 0, 0] = (1 - frac_tmp[0, 0]) * cond_tmp[0, 0]
 
             lwinc = rc_out[0, 0, 0] - rc_in[0, 0, 0]
             if abs(lwinc) > 1e-12 and esatw(t[0, 0, 0]) < 0.5 * pabs[0, 0, 0]:
+                
                 rcold = rc_out[0, 0, 0]
                 rfrac = rv_in[0, 0, 0] - lwinc
 
@@ -518,19 +473,18 @@ def condensation(
             wcldfr[0, 0, 0] = cldfr[0, 0, 0]
 
             dum1 = min(
-                1, 20 * rc_out[0, 0, 0] * sqrt(dz[0, 0]) / qsi[0, 0]
+                1, 20 * rc_out[0, 0, 0] * sqrt(dz[0, 0, 0]) / qsi[0, 0]
             )  # cloud liquid factor
             dum3 = max(0, icldfr[0, 0, 0] - wcldfr[0, 0, 0])
             dum4[0, 0, 0] = max(
                 0,
-                min(1, ice_cld_wgt[0, 0] * dum4[0, 0, 0] * sqrt(dz[0, 0]) / qsi[0, 0]),
+                min(1, ice_cld_wgt[0, 0] * dum4[0, 0, 0] * sqrt(dz[0, 0, 0]) / qsi[0, 0]),
             )
             dum2 = (0.8 * cldfr[0, 0, 0] + 0.2) * min(1, dum1 + dum4 * cldfr[0, 0, 0])
             cldfr[0, 0, 0] = min(1, dum2 + (0.5 + 0.5 * dum3) * dum4)
 
             ri_out[0, 0, 0] = ri_in[0, 0, 0]
 
-            # TODO : same as 341 with rcold instead of ri_in
             t[0, 0, 0] = update_temperature(
                 t, rcold, rc_out, ri_in, ri_out, lv, ls, cpd
             )
@@ -538,5 +492,5 @@ def condensation(
             rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
 
     if nebn.clambda3 == "CB":
-        with computation(PARALLEL), interval(...):
+        with computation(FORWARD), interval(...):
             sigrc[0, 0, 0] *= min(3, max(1, 1 - q1[0, 0]))
