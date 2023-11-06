@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
 import gt4py.cartesian.gtscript as gtscript
-from config import dtype
+from config import dtype_float
 from gt4py.cartesian.gtscript import Field
 
 from phyex_gt4py.constants import Constants
@@ -13,10 +13,10 @@ def compute_frac_ice(
     hfrac_ice: str,
     nebn: Neb,
     cst: Constants,
-    t: dtype,
-    frac_ice: dtype,
+    t: dtype_float,
+    frac_ice: dtype_float,
     kerr: Optional[int],
-) -> Tuple[int, gtscript.Field[dtype]]:
+) -> Tuple[int, gtscript.Field[dtype_float]]:
     kerr = 0 if kerr is not None else None
 
     # using temperature

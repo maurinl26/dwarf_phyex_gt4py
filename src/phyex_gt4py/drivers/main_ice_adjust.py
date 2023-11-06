@@ -81,12 +81,12 @@ if __name__ == "__main__":
     grid = ComputationalGrid(nx, ny)
     
     exnref = zeros((nx, ny, nz), dtype_float=dtype_float)
-    rhodref = zeros()
-    rhodj = zeros()
-    sigqsat = zeros()
-    sigs = zeros()
-    mfconv = zeros()
-    pabs = zeros()
+    rhodref = zeros((nx, ny, nz), dtype_float=dtype_float)
+    rhodj = zeros((nx, ny, nz), dtype_float=dtype_float)
+    sigqsat = zeros((nx, ny, nz), dtype_float=dtype_float)
+    sigs = zeros((nx, ny, nz), dtype_float=dtype_float)
+    mfconv = zeros((nx, ny, nz), dtype_float=dtype_float)
+    pabs = zeros((nx, ny, nz), dtype_float=dtype_float)
     
     # In -> 
     

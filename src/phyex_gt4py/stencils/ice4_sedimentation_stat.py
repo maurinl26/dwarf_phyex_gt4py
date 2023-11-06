@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 import gt4py.cartesian.gtscript as gtscript
-from config import backend, dtype, dtype_int
+from config import backend, dtype_float, dtype_int
 from functions.gamma import gamma
 from functions.ice4_sedimentation_stat import pristine_ice
 from gt4py.cartesian.gtscript import IJ, Field, K
@@ -21,37 +21,37 @@ def ice4_sedimentation_stat(
     icep: RainIceParam,
     iced: RainIceDescr,
     parami: ParamIce,
-    ptstep: dtype,
+    ptstep: dtype_float,
     krr: int,  # number of moist variables
     # 3D Fields
-    pdzz: Field[dtype],  # Layer thickness
-    prhodef: Field[dtype],  # Reference density
-    ppbabst: Field[dtype],  # Absolute pressure at t
-    ptht: Field[dtype],  # Theta at t
-    pt: Field[dtype],  # Temperature
-    prhodj: Field[dtype],  # Density * jacobian
-    prcs: Field[dtype],  # Cloud water mixing ratio source
-    prct: Field[dtype],  # Cloud water m. r. at t
-    prrs: Field[dtype],  # Rain water m. r. source
-    prrt: Field[dtype],  # Rain water m. r. at t
-    pris: Field[dtype],  # Pristine ice m. r. source
-    prit: Field[dtype],  # Pristine ice m. r. at t
-    prss: Field[dtype],  # Snow m. r. source
-    prst: Field[dtype],  # Snow m. r. at t
-    prgs: Field[dtype],  # Graupel m. r. source
-    prgt: Field[dtype],  # Graupel m. r. at t
+    pdzz: Field[dtype_float],  # Layer thickness
+    prhodef: Field[dtype_float],  # Reference density
+    ppbabst: Field[dtype_float],  # Absolute pressure at t
+    ptht: Field[dtype_float],  # Theta at t
+    pt: Field[dtype_float],  # Temperature
+    prhodj: Field[dtype_float],  # Density * jacobian
+    prcs: Field[dtype_float],  # Cloud water mixing ratio source
+    prct: Field[dtype_float],  # Cloud water m. r. at t
+    prrs: Field[dtype_float],  # Rain water m. r. source
+    prrt: Field[dtype_float],  # Rain water m. r. at t
+    pris: Field[dtype_float],  # Pristine ice m. r. source
+    prit: Field[dtype_float],  # Pristine ice m. r. at t
+    prss: Field[dtype_float],  # Snow m. r. source
+    prst: Field[dtype_float],  # Snow m. r. at t
+    prgs: Field[dtype_float],  # Graupel m. r. source
+    prgt: Field[dtype_float],  # Graupel m. r. at t
     # 2D Fields
-    pinprc: Field[dtype],  # Cloud instant precip
-    pinprr: Field[dtype],  # Rain instant precip
-    pinpri: Field[dtype],  # Pristine ice instant precip
-    pinprs: Field[dtype],  # Snow instant precip
-    pinprg: Optional[Field[dtype]],
-    psea: Optional[Field[dtype]],
-    ptown: Optional[Field[dtype]],
-    pinprh: Optional[Field[dtype]],
-    prht: Optional[Field[dtype]],
-    prhs: Optional[Field[dtype]],
-    pfpr: Optional[Field[dtype]],
+    pinprc: Field[dtype_float],  # Cloud instant precip
+    pinprr: Field[dtype_float],  # Rain instant precip
+    pinpri: Field[dtype_float],  # Pristine ice instant precip
+    pinprs: Field[dtype_float],  # Snow instant precip
+    pinprg: Optional[Field[dtype_float]],
+    psea: Optional[Field[dtype_float]],
+    ptown: Optional[Field[dtype_float]],
+    pinprh: Optional[Field[dtype_float]],
+    prht: Optional[Field[dtype_float]],
+    prhs: Optional[Field[dtype_float]],
+    pfpr: Optional[Field[dtype_float]],
 ):
     # TODO :
     invtstep = 1 / ptstep
@@ -123,22 +123,22 @@ def cloud(
     iced: RainIceDescr,
     icep: RainIceParam,
     jrr: dtype_int,
-    sed: Field[dtype],
-    pxrt: Field[dtype],
-    tsorhodz: Field[dtype],
-    ppabst: Field[dtype],
-    prhodref: Field[dtype],
-    ptht: Field[dtype],
-    psea: Field[dtype],
-    ptown: Field[dtype],
+    sed: Field[dtype_float],
+    pxrt: Field[dtype_float],
+    tsorhodz: Field[dtype_float],
+    ppabst: Field[dtype_float],
+    prhodref: Field[dtype_float],
+    ptht: Field[dtype_float],
+    psea: Field[dtype_float],
+    ptown: Field[dtype_float],
     gac,
     gac2,
     gc,
     gc2,
-    raydefo: dtype,
-    ptstep: dtype,
-    pdzz: Field[dtype],
-    invstep: dtype,
+    raydefo: dtype_float,
+    ptstep: dtype_float,
+    pdzz: Field[dtype_float],
+    invstep: dtype_float,
 ):
     qp = sed[0, 0, 1] * tsorhodz[0, 0, 0]
 
@@ -204,11 +204,11 @@ def cloud(
 
 @gtscript.function
 def fwsed1(
-    wsedw: Field[dtype],
-    pdzz1: dtype,
-    phrodref1: Field[dtype],
-    pxrt: Field[dtype],
-    pinvstep: dtype,
+    wsedw: Field[dtype_float],
+    pdzz1: dtype_float,
+    phrodref1: Field[dtype_float],
+    pxrt: Field[dtype_float],
+    pinvstep: dtype_float,
 ):
     return min(
         phrodref1 * pdzz1 * pxrt[0, 0, 0] * pinvstep, wsedw * phrodref1 * pxrt[0, 0, 0]
@@ -216,23 +216,23 @@ def fwsed1(
 
 
 @gtscript.function
-def fwsed2(wsedw: Field[dtype], pdzz1: dtype, ptstep1: dtype, pwsedwsup: dtype):
+def fwsed2(wsedw: Field[dtype_float], pdzz1: dtype_float, ptstep1: dtype_float, pwsedwsup: dtype_float):
     return max(0, 1 - pdzz1 / (ptstep1 * wsedw)) * pwsedwsup
 
 
 @gtscript.function
 def other_species(
     iced: RainIceDescr,
-    sed: Field[dtype],
-    pxrt: Field[dtype],
-    tsorhodz: Field[dtype],
-    prhodref: Field[dtype],
-    pdzz: Field[dtype],
-    pinvstep: dtype,
-    ptstep: dtype,
+    sed: Field[dtype_float],
+    pxrt: Field[dtype_float],
+    tsorhodz: Field[dtype_float],
+    prhodref: Field[dtype_float],
+    pdzz: Field[dtype_float],
+    pinvstep: dtype_float,
+    ptstep: dtype_float,
     jrr: dtype_int,
-    fsed: dtype,
-    exsed: dtype,
+    fsed: dtype_float,
+    exsed: dtype_float,
 ):
     qp = sed[0, 0, 1] * tsorhodz[0, 0, 0]
     if pxrt > iced.rtmin[jrr] or qp > iced.rtmin[jrr]:
@@ -271,14 +271,14 @@ def pristine_ice(
     parami: ParamIce,
     cst: Constants,
     jrr: dtype_int,
-    pxrt: Field[dtype],
-    t: Field[dtype],
-    sed: Field[dtype],
-    tsorhodz: Field[dtype],
-    prhodref: Field[dtype],
-    pdzz: Field[dtype],
-    ptstep: Field[dtype],
-    pinvstep: Field[dtype],
+    pxrt: Field[dtype_float],
+    t: Field[dtype_float],
+    sed: Field[dtype_float],
+    tsorhodz: Field[dtype_float],
+    prhodref: Field[dtype_float],
+    pdzz: Field[dtype_float],
+    ptstep: Field[dtype_float],
+    pinvstep: Field[dtype_float],
 ):
     qp = sed[0, 0, 1] * tsorhodz[0, 0, 0]
     if pxrt[0, 0, 0] > iced.rtmin[jrr]:

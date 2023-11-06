@@ -1,6 +1,6 @@
 from typing import Tuple
 
-import gt4py.cartesian.gtscript as gtscript
+from gt4py.cartesian import gtscript, IJ
 from config import backend, dtype_float, dtype_int
 
 from phyex_gt4py.constants import Constants
@@ -288,7 +288,8 @@ def subgrid_mf(
         hl_hc = min(1, hl_hc + hcf)
         hl_hr += hr
         
-    return hl_hr, hl_hc, w         
+    return hl_hr, hl_hc, w     
+
 
 @gtscript.stencil(backend=backend)            
 def iteration(
@@ -330,7 +331,30 @@ def iteration(
     hlc_hcf: gtscript.Field[dtype_float],
     hli_hri: gtscript.Field[dtype_float],
     hli_hcf: gtscript.Field[dtype_float],
-    ice_cld_wgt: gtscript.Field[dtype_float],    
+    ice_cld_wgt: gtscript.Field[dtype_float],
+    
+    # For condensation 
+    cpd: gtscript.Field[dtype_float],
+    rt: gtscript.Field[dtype_float],  # work array for total water mixing ratio
+    pv: gtscript.Field[dtype_float],  # thermodynamics
+    piv: gtscript.Field[dtype_float],  # thermodynamics
+    qsl: gtscript.Field[dtype_float],  # thermodynamics
+    qsi: gtscript.Field[dtype_float],
+    z_tropo: gtscript.Field[IJ, dtype_float],  # height at tropopause
+    z_ground: gtscript.Field[IJ, dtype_float],  # height at ground level (orography)
+    l: gtscript.Field[dtype_float],  # length scale
+    frac_tmp: gtscript.Field[IJ, dtype_float],  # ice fraction
+    cond_tmp: gtscript.Field[IJ, dtype_float],  # condensate
+    a: gtscript.Field[IJ, dtype_float],  # related to computation of Sig_s
+    b: gtscript.Field[IJ, dtype_float],
+    sbar: gtscript.Field[IJ, dtype_float],
+    sigma: gtscript.Field[IJ, dtype_float],
+    q1: gtscript.Field[IJ, dtype_float],
+    ardum: gtscript.Field[IJ, dtype_float], # related to ocnd2 ice cloud calculation
+    dz: gtscript.Field[IJ, dtype_float],  # Layer thickness
+    dum4: gtscript.Field[dtype_float],
+    
+        
 ):
     
     # 2.4 specific heat for moist air at t+1
@@ -408,6 +432,25 @@ def iteration(
             ice_cld_wgt=ice_cld_wgt,
                 
             # Temp fields (to initiate)
+            cpd,
+            rt,  # work array for total water mixing ratio
+            pv,  # thermodynamics
+            piv,  # thermodynamics
+            qsl,  # thermodynamics
+            qsi,
+            z_tropo,  # height at tropopause
+            z_ground,  # height at ground level (orography)
+            l,  # length scale
+            frac_tmp,  # ice fraction
+            cond_tmp,  # condensate
+            a,  # related to computation of Sig_s
+            b,
+            sbar,
+            sigma,
+            q1,
+            ardum, # related to ocnd2 ice cloud calculation
+            dz, # Layer thickness
+            dum4,
         )
     
     # 3. subgrid condensation scheme
@@ -456,39 +499,23 @@ def iteration(
                 ice_cld_wgt=ice_cld_wgt, 
                 
                 # Tmp fields used in routine
-                # prifact=,
-                # cpd=, 
-                # tlk=, 
-                # rt=, 
-                # pv=, 
-                # piv=, 
-                # qsl=, 
-                # qsi=,
-                # t_tropo=, 
-                # z_tropo=, 
-                # z_ground=, 
-                # l=, 
-                # frac_tmp=,
-                # cond_tmp=, 
-                # a=, 
-                # b=, 
-                # sbar=, 
-                # sigma=, 
-                # q1=, 
-                # esatw_t=, 
-                # ardum=, 
-                # ardum2=, 
-                # dz=, 
-                # cldini=, 
-                # dum4=, 
-                # lwinc=, 
-                # rsp=, 
-                # rsw=, 
-                # rfrac=, 
-                # rsdif=, 
-                # rcold=,
-                # dzfact=, 
-                # dzref=, 
-                # inq1=, 
-                # inc=,  
+                cpd,
+                rt,  # work array for total water mixing ratio
+                pv,  # thermodynamics
+                piv,  # thermodynamics
+                qsl,  # thermodynamics
+                qsi,
+                z_tropo,  # height at tropopause
+                z_ground,  # height at ground level (orography)
+                l,  # length scale
+                frac_tmp,  # ice fraction
+                cond_tmp,  # condensate
+                a,  # related to computation of Sig_s
+                b,
+                sbar,
+                sigma,
+                q1,
+                ardum, # related to ocnd2 ice cloud calculation
+                dz, # Layer thickness
+                dum4,
         )

@@ -1,5 +1,5 @@
 import numpy as np
-from config import dtype
+from config import dtype_float
 
 zcoef = tuple()
 zcoef[0] = 76.18009172947146
@@ -12,7 +12,7 @@ zstp = 2.5066282746310005
 ZPI = 3.141592654
 
 
-def gamma(x: dtype) -> dtype:
+def gamma(x: dtype_float) -> dtype_float:
     if x < 0:
         zx = 1 - x
     else:
