@@ -7,10 +7,10 @@ from phyex_gt4py.constants import Constants
 
 @gtscript.function
 def erf(
-    Cst: Constants,
+    pi: dtype_float,
     z: gtscript.Field[dtype_float],
 ):
     gc = -z / sqrt(2)
-    gv = 1 - sign(1, gc) * sqrt(1 - exp(-4 * gc**2 / Cst.pi))
+    gv = 1 - sign(1, gc) * sqrt(1 - exp(-4 * gc**2 / pi))
 
     return gc, gv

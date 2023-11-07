@@ -7,14 +7,14 @@ from phyex_gt4py.constants import Constants
 
 @gtscript.function
 def update_temperature(
-    t: gtscript.Field[dtype_float],
-    rc_in: gtscript.Field[dtype_float],
-    rc_out: gtscript.Field[dtype_float],
-    ri_in: gtscript.Field[dtype_float],
-    ri_out: gtscript.Field[dtype_float],
-    lv: gtscript.Field[dtype_float],
-    ls: gtscript.Field[dtype_float],
-    cpd: gtscript.Field[dtype_float],
+    t: Field[dtype_float],
+    rc_in: Field[dtype_float],
+    rc_out: Field[dtype_float],
+    ri_in: Field[dtype_float],
+    ri_out: Field[dtype_float],
+    lv: Field[dtype_float],
+    ls: Field[dtype_float],
+    cpd: Field[dtype_float],
 ):
     t[0, 0, 0] = (
         t[0, 0, 0]
