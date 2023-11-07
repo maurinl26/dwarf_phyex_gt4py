@@ -1,41 +1,85 @@
 
 
-from typing import Optional
+from typing import Dict, Optional
+from sympl import ImplicitTendencyComponent
 
 from config import dtype_float
-from gt4py.storage import empty, zeros
+from gt4py.storage import zeros
 from ifs_physics_common.framework.grid import ComputationalGrid
 
-from phyex_gt4py.constants import Constants
-from phyex_gt4py.dimphyex import Phyex
-from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
+from phyex_gt4py.phyex import Phyex
 from phyex_gt4py.stencils.ice_adjust import ice_adjust
 
 
-def ini_phyex(
-    hprogram: str,
-    kunitnml: int,
-    ldneednam: bool,
-    kluout: int,
-    kfrom: int,
-    kto:  int,
-    ptstep: float,
-    dzmin: float,
-    cmicro: str,
-    cturb: str,
-    csconv: str,
-    ldhangemodel: Optional[bool],
-    lddefaultval: Optional[bool],
-    ldreadnam: Optional[bool],
-    ldcheck: Optional[bool],
-    krpint: Optional[int],
-    ldinit: Optional[bool],
-    phyex_in: Phyex,
-    phyex_out: Phyex
-) -> Phyex:
+class IceAdjust(ImplicitTendencyComponent):
     
-    NotImplemented
+    
+    # from aro_adjust.h
+    input_properties = {
+        "zz",
+        "rhodj",
+        "exnref",
+        "rhodref",
+        "pabsm",
+        "tht",
+        "mfconv",
+        "sigs",
+        
+    }
+    
+    tendency_properties = {
+        "ths",      
+        "rvs",      # PRS(1)
+        "rcs",      # PRS(2)
+        "ris",      # PRS(4)        
+        
+        "th",       # ZRS(0)
+        "rv",       # ZRS(1)
+        "rc",       # ZRS(2)
+        "rr",       # ZRS(3)
+        "ri",       # ZRS(4)
+        "rs",       # ZRS(5)
+        "rg",       # ZRS(6)
+        
+        "cldfr",
+        "sigqsat",
+        "ice_cld_wgt"
+        
+    }
+    
+    diagnostic_properties = {
+        "icldfr",
+        "wcldfr",
+        "ssio",
+        "ssiu",
+        "ifr",
+        "hlc_hrc",
+        "hlc_hcf",
+        "hli_hri",
+        "hli_hcf"
+    }
+    
+    temporaries = {
+        
+    }
+    
+    
+    
+    def __init__(self):
+        NotImplemented
+        
+    def array_call(self, state):
+        NotImplemented
+
+def initialize_fields(grid: ComputationalGrid, fields: Dict):
+    
+    return {
+        key: zeros(grid.shape, dtype_float)
+        for key in fields.keys()
+    }
+    
+
+    
     
     
     
@@ -53,59 +97,28 @@ if __name__ == "__main__":
     # Especes microphysiques (starting from 1)
     nrr = 7
     
-    klon = 100
-    klev = 100
-    krr = 7
-    
     nx = 100
     ny = 100
     nz = 90
     
-    
-    #### Init Phyex ####
-    cst = Constants()
-    param_icen = ParamIce(hprogram=cprogram)
-    nebn = Neb(hprogram=cprogram) 
-    rain_ice_descrn = RainIceDescr(cst, param_icen)
-    rain_ice_paramn = RainIceParam(cst, param_icen)
-    
-    phyex = Phyex(
-        cst=cst,
-        param_icen=param_icen,
-        rain_ice_descrn=rain_ice_descrn,
-        rain_ice_paramn=rain_ice_paramn,
-        nebn=nebn
-    )
-    
+    # Phyex parameters
+    phyex = Phyex(cprogram)
+
     ##### Define computational grid #####
     grid = ComputationalGrid(nx, ny)
     
-    exnref = zeros((nx, ny, nz), dtype_float=dtype_float)
-    rhodref = zeros((nx, ny, nz), dtype_float=dtype_float)
-    rhodj = zeros((nx, ny, nz), dtype_float=dtype_float)
-    sigqsat = zeros((nx, ny, nz), dtype_float=dtype_float)
-    sigs = zeros((nx, ny, nz), dtype_float=dtype_float)
-    mfconv = zeros((nx, ny, nz), dtype_float=dtype_float)
-    pabs = zeros((nx, ny, nz), dtype_float=dtype_float)
     
-    # In -> 
+    aro_adjust = IceAdjust()
     
-    # Tmp 
+    initialize_fields(grid, aro_adjust.tendency_properties)
+    initialize_fields(grid, aro_adjust.diagnostic_properties)
+    initialize_fields(grid, aro_adjust.input_properties)
+    initialize_fields(grid, aro_adjust.temporaries)
     
-    # Outs -> zeros()
-    
-    hlc_hrc = zeros()
-    hlc_hcf = zeros()
-    hli_hri = zeros()
-    hli_hcf = zeros()
-    
-    
-    ##### Get data #####
-    
+   
     
     #### Launch ice adjust #####
     # (stencil call)
-    # TODO: shift fields to a sympl state
     ice_adjust(
         cst=phyex.cst,
         parami=phyex.param_icen,
@@ -115,35 +128,11 @@ if __name__ == "__main__":
         itermax=phyex.itermax,
         tstep=phyex.tstep,
         krr=nrr,
-        lmfconv=phyex.lmfconv,    # TODO : PHYEX MISC lmfconv
-        
-        # IN
-        sigqsat=sigqsat,
-        rhodj=rhodj,    # TODO check if used 
-        exnref=exnref,
-        rhodref=rhodref,
-        sigs,
-        mfconv,
-        pabs,
-        zz,
-        exn,
-        cf_mf,
-        rc_mf,
-        ri_mf,
-        ifr,
-        icldfr,
-        wcldfr,
-        ssio, 
-        ssiu,
-        rc_tmp,         # tmp
-        rs_tmp,         # tmp
-        rs,
-        rs,
-        th,
-        ths,
-        scrs,
-        cldfr,
-        
+        lmfconv=phyex.lmfconv,           
+        **aro_adjust.input_properties,  # IN
+        **aro_adjust.tendency_properties # INOUT
+        **aro_adjust.diagnostic_properties # OUT 
+        **aro_adjust.temporaries, # Temporary  fields
     )
     
     

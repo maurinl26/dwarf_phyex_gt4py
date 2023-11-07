@@ -1,5 +1,5 @@
 import numpy as np
-from config import dtype_float
+from phyex_gt4py.config  import dtype_float
 
 zcoef = tuple()
 zcoef[0] = 76.18009172947146

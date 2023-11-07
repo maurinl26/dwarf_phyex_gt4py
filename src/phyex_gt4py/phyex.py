@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-
-from config import dtype_float, dtype_int
+from typing import Tuple
 
 from phyex_gt4py.budget import TBudgetConf
+from phyex_gt4py.config import dtype_float, dtype_int
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.nebn import Neb
 from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
@@ -58,8 +58,8 @@ class Phyex:
     couples: bool = field(default=False)
     blowsnow: bool = field(default=False)
     rsnow: dtype_float = field(default=1.0)
-    lbcx: str = field(default="CYCL")
-    lbcy: str = field(default="CYCL")
+    lbcx: Tuple[str] = field(default=("CYCL", "CYCL"))
+    lbcy: Tuple[str] = field(default=("CYCL", "CYCL"))
     ibm: bool = field(default=False)
     flyer: bool = field(default=False)
     diag_in_run: bool = field(default=False)
@@ -67,3 +67,10 @@ class Phyex:
 
     flat: bool
     tbuconf: TBudgetConf
+
+    def __post_init__(self, program: str):
+        self.cst = Constants()
+        self.param_icen = ParamIce(hprogram=program)
+        self.nebn = Neb(hprogram=program)
+        self.rain_ice_descrn = RainIceDescr(self.cst, self.param_icen)
+        self.rain_ice_paramn = RainIceParam(self.cst, self.param_icen)

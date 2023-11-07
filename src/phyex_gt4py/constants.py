@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import numpy as np
-from config import dtype_float, dtype_int
+from phyex_gt4py.config  import dtype_float, dtype_int
 
 @dataclass
 class Constants:

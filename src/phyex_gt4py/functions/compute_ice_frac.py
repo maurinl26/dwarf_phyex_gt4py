@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 
 import gt4py.cartesian.gtscript as gtscript
-from config import dtype_float
+from phyex_gt4py.config import dtype_float
 from gt4py.cartesian.gtscript import Field
 
 from phyex_gt4py.constants import Constants

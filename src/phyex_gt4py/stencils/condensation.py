@@ -1,6 +1,6 @@
 from typing import Optional
 
-from config import backend, dtype_float, dtype_int
+from phyex_gt4py.config  import backend, dtype_float, dtype_int
 from gt4py.cartesian import IJ, K, gtscript
 
 from phyex_gt4py.constants import Constants
@@ -31,7 +31,6 @@ def condensation(
     rr: gtscript.Field[dtype_float],  # grid scale mixing ratio of rain (kg/kg)
     rg: gtscript.Field[dtype_float],  # grid scale mixing ratio of graupel (kg/kg)
     sigs: gtscript.Field[dtype_float],  # Sigma_s from turbulence scheme
-    prifact: gtscript.Field[dtype_float],
     cldfr: gtscript.Field[dtype_float],
     sigrc: gtscript.Field[dtype_float],  # s r_c / sig_s ** 2
     ls: Optional[gtscript.Field[dtype_float]],

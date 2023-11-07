@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from math import gamma, log
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
-from config import dtype_float, dtype_int
 
+from phyex_gt4py.config import dtype_float, dtype_int
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.param_ice import ParamIce
 from phyex_gt4py.rain_ice_descr import RainIceDescr
