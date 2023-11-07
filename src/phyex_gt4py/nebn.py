@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from config import dtype_float
+from phyex_gt4py.config  import dtype_float
 
 
 @dataclass
