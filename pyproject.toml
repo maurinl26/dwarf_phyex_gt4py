@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "dwarf-phyex-gt4py"
+version = "0.1.0"
+description = ""
+authors = ["maurinl26 <maurin.loic.ac@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+numpy = ">=1.15,<1.27"
+gt4py = "^1.0.1"
+sympl = "==0.4.1.dev63"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
