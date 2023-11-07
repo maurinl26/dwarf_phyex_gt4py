@@ -74,7 +74,7 @@ class RainIceParam:
 
     # Constants for cloud droplet autoconversion AUT
     timautc: dtype_float = 1e-3
-    criautc: dtype_float
+    criautc: dtype_float = field(init=False)
 
     # Constants for cloud droplets accretion on raindrops : ACC
     fcaccr: dtype_float = field(init=False)

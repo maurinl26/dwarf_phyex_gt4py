@@ -3,7 +3,7 @@ from math import gamma
 from typing import List, Tuple
 
 import numpy as np
-from config import dtype_float, dtype_int
+from phyex_gt4py.config import dtype_float, dtype_int
 
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.param_ice import ParamIce
@@ -86,7 +86,7 @@ class RainIceDescr:
     nuc2: dtype_float = 1.0
 
     lbexc: dtype_float = field(init=False)
-    lbc: Tuple[dtype_float]
+    lbc: Tuple[dtype_float] = field(init=False)
 
     # Rain drop distribution parameters
     alphar: dtype_float = (

@@ -166,15 +166,15 @@ class Constants:
     invxp00: dtype_float = field(init=False)      # 1 / p00
     
     # 8. Machine precision
-    mnh_tiny: dtype_float    # minimum real on this machine
-    mnh_tiny_12: dtype_float # sqrt(minimum real on this machine)
-    mnh_epsilon: dtype_float # minimum space with 1.0
-    mnh_huge: dtype_float    # minimum real on this machine
-    mnh_huge_12_log: dtype_float # maximum log(sqrt(real)) on this machine
-    eps_dt: dtype_float      # default value for dt
-    res_flat_cart: dtype_float   # default     flat&cart residual tolerance
-    res_other: dtype_float   # default not flat&cart residual tolerance
-    res_prep: dtype_float    # default     prep      residual tolerance           
+    # mnh_tiny: dtype_float    # minimum real on this machine
+    # mnh_tiny_12: dtype_float # sqrt(minimum real on this machine)
+    # mnh_epsilon: dtype_float # minimum space with 1.0
+    # mnh_huge: dtype_float    # minimum real on this machine
+    # mnh_huge_12_log: dtype_float # maximum log(sqrt(real)) on this machine
+    # eps_dt: dtype_float      # default value for dt
+    # res_flat_cart: dtype_float   # default     flat&cart residual tolerance
+    # res_other: dtype_float   # default not flat&cart residual tolerance
+    # res_prep: dtype_float    # default     prep      residual tolerance           
     
 
     def __post_init__(self):

@@ -71,7 +71,7 @@ class ParamIce:
     t0criauti_nam: dtype_float = field(init=False)
     criautc_nam: dtype_float = field(default=0.5e-3)
     rdepsred_nam: dtype_float = field(default=1)
-    rdepgred_nam: dtype_float = field(defualt=1)
+    rdepgred_nam: dtype_float = field(default=1)
     lcond2: bool = field(default=False)
     frmin_nam: np.ndarray[40] = field(init=False)
 

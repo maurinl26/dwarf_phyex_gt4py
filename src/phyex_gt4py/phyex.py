@@ -65,8 +65,8 @@ class Phyex:
     diag_in_run: bool = field(default=False)
     o2d: bool = field(default=False)
 
-    flat: bool
-    tbuconf: TBudgetConf
+    # flat: bool
+    # tbuconf: TBudgetConf
 
     def __post_init__(self, program: str):
         self.cst = Constants()
