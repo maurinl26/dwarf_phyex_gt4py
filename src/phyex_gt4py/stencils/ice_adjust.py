@@ -23,13 +23,10 @@ def ice_adjust(
     nrr: dtype_int,                 # Number of moist variables
     lmfconv: bool, # size (mfconv) != 0
     sigqsat: gtscript.Field[dtype_float], # coeff applied to qsat variance
-    rhodj: gtscript.Field[dtype_float],   # dry density x jacobian
     exnref: gtscript.Field[dtype_float],  # ref exner pression
     rhodref: gtscript.Field[dtype_float], #        
     sigs: gtscript.Field[dtype_float],    # Sigma_s at time t
-    mfconv: gtscript.Field[dtype_float],  # convective mass flux
     pabs_t: gtscript.Field[dtype_float],  # absolute pressure at t
-    zz: gtscript.Field[dtype_float],      # height of model layer
     exn: gtscript.Field[dtype_float],     # exner function
     
     cf_mf: gtscript.Field[dtype_float],   # convective mass flux fraction
@@ -66,7 +63,6 @@ def ice_adjust(
     rg: gtscript.Field[dtype_float],              # graupel m.r. to adjust
     rh: gtscript.Field[dtype_float],              # hail m.r. to adjust
     
-    ice_cld_wgt: gtscript.Field[dtype_float],     # 
 
     hlc_hrc: gtscript.Field[dtype_float],
     hlc_hcf: gtscript.Field[dtype_float],
@@ -78,16 +74,25 @@ def ice_adjust(
     ri_tmp: gtscript.Field[dtype_float],
     rc_tmp: gtscript.Field[dtype_float],
     t_tmp: gtscript.Field[dtype_float],
-    sigqsat_tmp: gtscript.Field[dtype_float],     # 
-    srcs_tmp: gtscript.Field[dtype_float],        # 
-    sigs_tmp: gtscript.Field[dtype_float],        
     cph: gtscript.Field[dtype_float],             # guess of the CPh for the mixing
     lv: gtscript.Field[dtype_float],              # guess of the Lv at t+1
     ls: gtscript.Field[dtype_float],              # guess of the Ls at t+1
     
     criaut: gtscript.Field[dtype_float],          # autoconversion thresholds
-    hcf: gtscript.Field[dtype_float],             # 
-    hr: gtscript.Field[dtype_float],              
+    
+    # Temporary fields # Condensation
+    cpd: gtscript.Field[dtype_float],
+    rt: gtscript.Field[dtype_float],  # work array for total water mixing ratio
+    pv: gtscript.Field[dtype_float],  # thermodynamics
+    piv: gtscript.Field[dtype_float],  # thermodynamics
+    qsl: gtscript.Field[dtype_float],  # thermodynamics
+    qsi: gtscript.Field[dtype_float],
+    frac_tmp: gtscript.Field[IJ, dtype_float],  # ice fraction
+    cond_tmp: gtscript.Field[IJ, dtype_float],  # condensate
+    a: gtscript.Field[IJ, dtype_float],  # related to computation of Sig_s
+    sbar: gtscript.Field[IJ, dtype_float],
+    sigma: gtscript.Field[IJ, dtype_float],
+    q1: gtscript.Field[IJ, dtype_float],          
 ):   
     """_summary_
 
@@ -118,12 +123,110 @@ def ice_adjust(
         lv, ls = latent_heat(cst, t_tmp)
         
     # jiter  = 0
-    rv_tmp, rc_tmp, ri_tmp = iteration(rv, rv, rv, rv_tmp, rc_tmp, ri_tmp)
+    rv_tmp, rc_tmp, ri_tmp = iteration(
+        rv_in=rv, 
+        rc_in=rc, 
+        ri_in=ri, 
+        rv_out=rv_tmp, 
+        rc_out=rc_tmp, 
+        ri_out=ri_tmp,
+        
+        # 
+        cst=cst,
+        neb=neb,
+        icep=icep,
+        parami=parami,
+        krr=nrr,
+        lmfconv=lmfconv,
+        pabs=pabs_t,
+        t_tmp=t_tmp,
+        lv=lv,
+        ls=ls,
+        rr=rr,
+        rs=rs,
+        rg=rg,
+        rh=rh,
+        sigs=sigs,
+        cldfr=cldfr,
+        srcs=srcs,
+        sigqsat=sigqsat,
+        cph=cph,
+        ifr=ifr,
+        
+        # super-saturation with respect to in in the sub saturated fraction
+        hlc_hrc=hlc_hrc,
+        hlc_hcf=hlc_hcf, # cloud fraction
+        hli_hri=hli_hri, 
+        hli_hcf=hli_hcf, 
+        
+        # Temporary fields - Condensation
+        cpd=cpd,       
+        rt=rt,        # work array for total water mixing ratio
+        pv=pv,        # thermodynamics
+        piv=piv,       # thermodynamics
+        qsl=qsl,       # thermodynamics
+        qsi=qsi,       
+        frac_tmp=frac_tmp,  # ice fraction
+        cond_tmp=cond_tmp,  # condensate
+        a=a,         # related to computation of Sig_s
+        sbar=sbar,        
+        sigma=sigma,        
+        q1=q1,        
+        )
               
     # jiter > 0 
     for jiter in range(1, itermax):
         # backup(rv_tmp, rc_tmp, ri_tmp)
-        iteration(rv_tmp, rc_tmp, ri_tmp, rv_tmp, rc_tmp, ri_tmp, nrr) 
+        iteration(
+            rv_in=rv_tmp, 
+            rc_in=rc_tmp, 
+            ri_in=ri_tmp, 
+            rv_out=rv_tmp, 
+            rc_out=rc_tmp, 
+            ri_out=ri_tmp,
+            
+            # 
+            cst=cst,
+            neb=neb,
+            icep=icep,
+            parami=parami,
+            krr=nrr,
+            lmfconv=lmfconv,
+            pabs=pabs_t,
+            t_tmp=t_tmp,
+            lv=lv,
+            ls=ls,
+            rr=rr,
+            rs=rs,
+            rg=rg,
+            rh=rh,
+            sigs=sigs,
+            cldfr=cldfr,
+            srcs=srcs,
+            sigqsat=sigqsat,
+            cph=cph,
+            ifr=ifr,
+            
+            # super-saturation with respect to in in the sub saturated fraction
+            hlc_hrc=hlc_hrc,
+            hlc_hcf=hlc_hcf, # cloud fraction
+            hli_hri=hli_hri, 
+            hli_hcf=hli_hcf, 
+            
+            # Temporary fields - Condensation
+            cpd=cpd,       
+            rt=rt,        # work array for total water mixing ratio
+            pv=pv,        # thermodynamics
+            piv=piv,       # thermodynamics
+            qsl=qsl,       # thermodynamics
+            qsi=qsi,       
+            frac_tmp=frac_tmp,  # ice fraction
+            cond_tmp=cond_tmp,  # condensate
+            a=a,         # related to computation of Sig_s
+            sbar=sbar,        
+            sigma=sigma,        
+            q1=q1,   
+        ) 
         
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
     with computation(PARALLEL), interval(...):
@@ -141,7 +244,6 @@ def ice_adjust(
         w2 = max(w2, - ris[0, 0, 0]) if w1 > 0 else min(w2, rvs[0, 0, 0])
         
         if not neb.subg_cond:
-        
             cldfr[0, 0, 0] = 1 if rcs[0, 0, 0] + ris[0, 0, 0] > 1e-12 / tstep else 0
             srcs[0, 0, 0] = cldfr[0, 0, 0] if compute_srcs else None
                          
@@ -204,38 +306,7 @@ def ice_adjust(
             ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
             rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
             th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
-                    
-@gtscript.function()
-def backup(
-    rv_tmp: gtscript.Field,
-    ri_tmp: gtscript.Field,
-    rc_tmp: gtscript.Field,
-    rv_out: gtscript.Field,
-    ri_out: gtscript.Field,
-    rc_out: gtscript.Field
-) -> Tuple[gtscript.Field]:
-    """
-    Dump out fields into temporary fields to 
-    perform loop iterations
-
-    Args:
-        rv_tmp (gtscript.Field): vapour mixing ratio (temp field)
-        ri_tmp (gtscript.Field): ice mixing ratio (temp field)
-        rc_tmp (gtscript.Field): cloud mixing ratio (temp field)
-        rv_out (gtscript.Field): vapour mixing ratio (out field)
-        ri_out (gtscript.Field): ice mixing ratio (out field)
-        rc_out (gtscript.Field): cloud mixing ratio (out field)
-
-    Returns:
-        Tuple[gtscript.Field]: temporary fields
-    """
-    
-    rv_tmp = rv_out[0, 0, 0]
-    ri_tmp = ri_out[0, 0, 0]
-    rc_tmp = rc_out[0, 0, 0]
-    
-    return rv_tmp, ri_tmp, rc_tmp
-                            
+                                           
             
 @gtscript.function
 def subgrid_mf(
@@ -340,19 +411,12 @@ def iteration(
     piv: gtscript.Field[dtype_float],  # thermodynamics
     qsl: gtscript.Field[dtype_float],  # thermodynamics
     qsi: gtscript.Field[dtype_float],
-    z_tropo: gtscript.Field[IJ, dtype_float],  # height at tropopause
-    z_ground: gtscript.Field[IJ, dtype_float],  # height at ground level (orography)
-    l: gtscript.Field[dtype_float],  # length scale
     frac_tmp: gtscript.Field[IJ, dtype_float],  # ice fraction
     cond_tmp: gtscript.Field[IJ, dtype_float],  # condensate
     a: gtscript.Field[IJ, dtype_float],  # related to computation of Sig_s
-    b: gtscript.Field[IJ, dtype_float],
     sbar: gtscript.Field[IJ, dtype_float],
     sigma: gtscript.Field[IJ, dtype_float],
     q1: gtscript.Field[IJ, dtype_float],
-    ardum: gtscript.Field[IJ, dtype_float], # related to ocnd2 ice cloud calculation
-    dz: gtscript.Field[IJ, dtype_float],  # Layer thickness
-    dum4: gtscript.Field[dtype_float],
     
         
 ):
@@ -432,25 +496,18 @@ def iteration(
             ice_cld_wgt=ice_cld_wgt,
                 
             # Temp fields (to initiate)
-            cpd,
-            rt,  # work array for total water mixing ratio
-            pv,  # thermodynamics
-            piv,  # thermodynamics
-            qsl,  # thermodynamics
-            qsi,
-            z_tropo,  # height at tropopause
-            z_ground,  # height at ground level (orography)
-            l,  # length scale
-            frac_tmp,  # ice fraction
-            cond_tmp,  # condensate
-            a,  # related to computation of Sig_s
-            b,
-            sbar,
-            sigma,
-            q1,
-            ardum, # related to ocnd2 ice cloud calculation
-            dz, # Layer thickness
-            dum4,
+            cpd=cpd,
+            rt=rt,  # work array for total water mixing ratio
+            pv=pv,  # thermodynamics
+            piv=piv,  # thermodynamics
+            qsl=qsl,  # thermodynamics
+            qsl=qsi,
+            frac_tmp=frac_tmp,  # ice fraction
+            cond_tmp=cond_tmp,  # condensate
+            a=a,  # related to computation of Sig_s
+            sbar=sbar,
+            sigma=sigma,
+            q1=q1,
         )
     
     # 3. subgrid condensation scheme
@@ -499,23 +556,16 @@ def iteration(
                 ice_cld_wgt=ice_cld_wgt, 
                 
                 # Tmp fields used in routine
-                cpd,
-                rt,  # work array for total water mixing ratio
-                pv,  # thermodynamics
-                piv,  # thermodynamics
-                qsl,  # thermodynamics
-                qsi,
-                z_tropo,  # height at tropopause
-                z_ground,  # height at ground level (orography)
-                l,  # length scale
-                frac_tmp,  # ice fraction
-                cond_tmp,  # condensate
-                a,  # related to computation of Sig_s
-                b,
-                sbar,
-                sigma,
-                q1,
-                ardum, # related to ocnd2 ice cloud calculation
-                dz, # Layer thickness
-                dum4,
-        )
+                cpd=cpd,
+                rt=rt,  # work array for total water mixing ratio
+                pv=pv,  # thermodynamics
+                piv=piv,  # thermodynamics
+                qsl=qsl,  # thermodynamics
+                qsl=qsi,
+                frac_tmp=frac_tmp,  # ice fraction
+                cond_tmp=cond_tmp,  # condensate
+                a=a,  # related to computation of Sig_s
+                sbar=sbar,
+                sigma=sigma,
+                q1=q1
+            )

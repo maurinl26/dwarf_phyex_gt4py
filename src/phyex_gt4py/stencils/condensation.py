@@ -46,6 +46,7 @@ def condensation(
     hlc_hcf: Optional[gtscript.Field[dtype_float]],  # cloud fraction
     hli_hri: Optional[gtscript.Field[dtype_float]],  #
     hli_hcf: Optional[gtscript.Field[dtype_float]],
+    
     # Temporary fields
     cpd: gtscript.Field[dtype_float],
     rt: gtscript.Field[dtype_float],  # work array for total water mixing ratio
@@ -97,10 +98,10 @@ def condensation(
         1.0000000,
         1.000000,
     ]
-    prifact = 0 if parami.cnd2 else 1
 
     # Initialize values
     with computation(), interval(...):
+        prifact = 0 if parami.cnd2 else 1
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
