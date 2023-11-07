@@ -1,65 +1,78 @@
 from typing import Optional
 
 from phyex_gt4py.config  import backend, dtype_float, dtype_int
-from gt4py.cartesian import IJ, K, gtscript
+from gt4py.cartesian.gtscript import IJ, K, Field, stencil
 
-from phyex_gt4py.constants import Constants
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
-from phyex_gt4py.functions.erf import erf
 from phyex_gt4py.functions.ice_adjust import _cph, latent_heat
-from phyex_gt4py.functions.icecloud import icecloud
 from phyex_gt4py.functions.temperature import update_temperature
-from phyex_gt4py.functions.tiwmx import esati, esatw
 from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
+from phyex_gt4py.rain_ice_param import ParamIce
 
 
-@gtscript.stencil(backend=backend)
+@stencil(backend=backend)
 def condensation(
-    cst: Constants,
-    nebn: Neb,
-    parami: ParamIce,
-    pabs: gtscript.Field[dtype_float],  # pressure (Pa)
-    t: gtscript.Field[dtype_float],  # T (K)
-    rv_in: gtscript.Field[dtype_float],
-    rc_in: gtscript.Field[dtype_float],
-    ri_in: gtscript.Field[dtype_float],
-    rv_out: gtscript.Field[dtype_float],
-    rc_out: gtscript.Field[dtype_float],
-    ri_out: gtscript.Field[dtype_float],
-    rs: gtscript.Field[dtype_float],  # grid scale mixing ratio of snow (kg/kg)
-    rr: gtscript.Field[dtype_float],  # grid scale mixing ratio of rain (kg/kg)
-    rg: gtscript.Field[dtype_float],  # grid scale mixing ratio of graupel (kg/kg)
-    sigs: gtscript.Field[dtype_float],  # Sigma_s from turbulence scheme
-    cldfr: gtscript.Field[dtype_float],
-    sigrc: gtscript.Field[dtype_float],  # s r_c / sig_s ** 2
-    ls: Optional[gtscript.Field[dtype_float]],
-    lv: Optional[gtscript.Field[dtype_float]],
-    cph: Optional[gtscript.Field[dtype_float]],
-    ifr: gtscript.Field[dtype_float],  # ratio cloud ice moist part
-    sigqsat: gtscript.Field[
+    pabs: Field[dtype_float],  # pressure (Pa)
+    t: Field[dtype_float],  # T (K)
+    rv_in: Field[dtype_float],
+    rc_in: Field[dtype_float],
+    ri_in: Field[dtype_float],
+    rv_out: Field[dtype_float],
+    rc_out: Field[dtype_float],
+    ri_out: Field[dtype_float],
+    rs: Field[dtype_float],  # grid scale mixing ratio of snow (kg/kg)
+    rr: Field[dtype_float],  # grid scale mixing ratio of rain (kg/kg)
+    rg: Field[dtype_float],  # grid scale mixing ratio of graupel (kg/kg)
+    sigs: Field[dtype_float],  # Sigma_s from turbulence scheme
+    cldfr: Field[dtype_float],
+    sigrc: Field[dtype_float],  # s r_c / sig_s ** 2
+    ls: Optional[Field[dtype_float]],
+    lv: Optional[Field[dtype_float]],
+    cph: Optional[Field[dtype_float]],
+    ifr: Field[dtype_float],  # ratio cloud ice moist part
+    sigqsat: Field[
         dtype_float
     ],  # use an extra qsat variance contribution (if osigma is True)
    # super-saturation with respect to in in the sub saturated fraction
-    hlc_hrc: Optional[gtscript.Field[dtype_float]],  #
-    hlc_hcf: Optional[gtscript.Field[dtype_float]],  # cloud fraction
-    hli_hri: Optional[gtscript.Field[dtype_float]],  #
-    hli_hcf: Optional[gtscript.Field[dtype_float]],
+    hlc_hrc: Optional[Field[dtype_float]],  #
+    hlc_hcf: Optional[Field[dtype_float]],  # cloud fraction
+    hli_hri: Optional[Field[dtype_float]],  #
+    hli_hcf: Optional[Field[dtype_float]],
     
     # Temporary fields
-    cpd: gtscript.Field[dtype_float],
-    rt: gtscript.Field[dtype_float],  # work array for total water mixing ratio
-    pv: gtscript.Field[dtype_float],  # thermodynamics
-    piv: gtscript.Field[dtype_float],  # thermodynamics
-    qsl: gtscript.Field[dtype_float],  # thermodynamics
-    qsi: gtscript.Field[dtype_float],
-    frac_tmp: gtscript.Field[IJ, dtype_float],  # ice fraction
-    cond_tmp: gtscript.Field[IJ, dtype_float],  # condensate
-    a: gtscript.Field[IJ, dtype_float],  # related to computation of Sig_s
-    sbar: gtscript.Field[IJ, dtype_float],
-    sigma: gtscript.Field[IJ, dtype_float],
-    q1: gtscript.Field[IJ, dtype_float],
-
+    cpd: Field[dtype_float],
+    rt: Field[dtype_float],  # work array for total water mixing ratio
+    pv: Field[dtype_float],  # thermodynamics
+    piv: Field[dtype_float],  # thermodynamics
+    qsl: Field[dtype_float],  # thermodynamics
+    qsi: Field[dtype_float],
+    frac_tmp: Field[IJ, dtype_float],  # ice fraction
+    cond_tmp: Field[IJ, dtype_float],  # condensate
+    a: Field[IJ, dtype_float],  # related to computation of Sig_s
+    sbar: Field[IJ, dtype_float],
+    sigma: Field[IJ, dtype_float],
+    q1: Field[IJ, dtype_float],
+    
+    # Condensation constants
+    lvtt: dtype_float,
+    lstt: dtype_float,
+    tt: dtype_float,
+    cpv: dtype_float,
+    Cl: dtype_float,
+    Ci: dtype_float,
+    alpw: dtype_float,
+    betaw: dtype_float,
+    gamw: dtype_float,
+    alpi: dtype_float,
+    betai: dtype_float,
+    gami: dtype_float,
+    Rd: dtype_float,
+    Rv: dtype_float,
+    
+    # Neb parameters
+    frac_ice_adjust: str,
+    tmaxmix: dtype_float,
+    tminmix: dtype_float
 ):
     src_1d = [
         0.0,
@@ -100,7 +113,7 @@ def condensation(
 
     # Initialize values
     with computation(), interval(...):
-        prifact = 0 if parami.cnd2 else 1
+        prifact = 1 # ocnd2 == False for AROME
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
@@ -114,34 +127,39 @@ def condensation(
         rt[0, 0, 0] = rv_in + rc_in + ri_in * prifact
 
         if ls is None and lv is None:
-            lv, ls = latent_heat(cst, t)
+            lv, ls = latent_heat(
+                lvtt,
+                lstt,
+                cpv,
+                tt, 
+                t)
 
         if cph is None:
-            cpd = _cph(cst, rv_in, rc_in, ri_in, rr, rs, rg)
+            cpd = _cph(rv_in, rc_in, ri_in, rr, rs, rg, cpd, cpv, Cl, Ci)
 
         pv[0, 0] = min(
-            exp(cst.alpw - cst.betaw / t[0, 0, 0] - cst.gamw * log(t[0, 0, 0])),
+            exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
             0.99 * pabs[0, 0, 0],
         )
         piv[0, 0] = min(
-            exp(cst.alpi - cst.betai / t[0, 0, 0]) - cst.gami * log(t[0, 0, 0]),
+            exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
             0.99 * pabs[0, 0, 0],
         )
 
         if rc_in[0, 0, 0] > ri_in[0, 0, 0] > 1e-20:
             frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
 
-        _, frac_tmp = compute_frac_ice(nebn.frac_ice_adjust, nebn, frac_tmp, t)
+        _, frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp)
 
-        qsl[0, 0] = cst.Rd / cst.Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
-        qsi[0, 0] = cst.Rd / cst.Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
+        qsl[0, 0] = Rd / Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
+        qsi[0, 0] = Rd / Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
 
         # dtype_interpolate bewteen liquid and solid as a function of temperature
         qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
         lvs = (1 - frac_tmp) * lv + frac_tmp * ls
 
         # coefficients a et b
-        ah = lvs * qsl / (cst.Rv * t[0, 0, 0] ** 2) * (1 + cst.Rv * qsl / cst.Rd)
+        ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
         a = 1 / (1 + lvs / cpd[0, 0, 0] * ah)
         b = ah * a
         sbar = a * (
