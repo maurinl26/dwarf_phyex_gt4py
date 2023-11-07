@@ -11,7 +11,8 @@ from phyex_gt4py.nebn import Neb
 @gtscript.function
 def compute_frac_ice(
     hfrac_ice: str,
-    nebn: Neb,
+    tmaxmix: dtype_float,
+    tminmix: dtype_float,
     cst: Constants,
     t: dtype_float,
     frac_ice: dtype_float,
@@ -22,7 +23,7 @@ def compute_frac_ice(
     # using temperature
     if hfrac_ice == "T":
         frac_ice = max(
-            0, min(1, ((nebn.tmaxmix - t[0, 0, 0]) / (nebn.tmaxmix - nebn.tminmix)))
+            0, min(1, ((tmaxmix - t[0, 0, 0]) / (tmaxmix - tminmix)))
         )
 
     # using temperature with old formula

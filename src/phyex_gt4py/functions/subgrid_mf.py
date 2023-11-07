@@ -12,7 +12,7 @@ def subgrid_mf(
     cf_mf: Field[dtype_float],
     w: Field[dtype_float],
     tstep: dtype_float,
-) -> Tuple[Field]:
+) -> Tuple[Field[dtype_float]]:
     """Compute subgrid mass fluxes
 
     Args:

@@ -2,9 +2,6 @@ from gt4py.cartesian.gtscript import Field
 from phyex_gt4py.config  import dtype_float
 from gt4py.cartesian import gtscript
 
-from phyex_gt4py.constants import Constants
-
-
 @gtscript.function
 def esatw(alpw: dtype_float, betaw: dtype_float, tt: Field[dtype_float]):
     esatw = exp(alpw - betaw / tt[0, 0, 0] - log(tt[0, 0, 0]))

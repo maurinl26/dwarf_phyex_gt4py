@@ -8,7 +8,6 @@ from phyex_gt4py.functions.tiwmx import esati, esatw
 
 @gtscript.function()
 def icecloud(
-    cst: Constants,
     p: gtscript.Field[IJ, dtype_float],
     z: gtscript.Field[IJ, dtype_float],
     dz: gtscript.Field[IJ, dtype_float],
@@ -24,6 +23,13 @@ def icecloud(
     ssiu: gtscript.Field[IJ, dtype_float],
     w2d_out: gtscript.Field[IJ, dtype_float],
     rsi: gtscript.Field[IJ, dtype_float],
+    # Constants
+    epsilo: dtype_float,
+    gravity0: dtype_float,
+    Rd: dtype_float,
+    lvtt: dtype_float,
+    cpd: dtype_float,
+    
 ):
     """
     Calculate subgridscale fraction of supersaturation with respect to ice.
@@ -61,7 +67,7 @@ def icecloud(
 
     zr = max(0, r[0, 0, 0] * tstep)
     sifrc = 0
-    a = zr[0, 0, 0] * p[0, 0, 0] / (cst.epsilo + zr)
+    a = zr[0, 0, 0] * p[0, 0, 0] / (epsilo + zr)
 
     # TODO : implementer esatw, esati
     rhw = a / esatw(t[0, 0, 0])
@@ -81,9 +87,9 @@ def icecloud(
     rhin = max(0.05, min(1, rhw))
     drhdz = (
         rhin
-        * cst.gravity0
-        / (t[0, 0, 0] * cst.Rd)
-        * (cst.epsilo * cst.lvtt / (cst.cpd * t[0, 0, 0]) - 1)
+        * gravity0
+        / (t[0, 0, 0] * Rd)
+        * (epsilo * lvtt / (cpd * t[0, 0, 0]) - 1)
     )
 
     zz = 0
