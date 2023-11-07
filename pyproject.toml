@@ -9,7 +9,7 @@ readme = "README.md"
 python = ">=3.10,<3.11"
 numpy = ">=1.15,<1.27"
 gt4py = "^1.0.1"
-sympl = "==0.4.1.dev63"
+sympl = "^0.4.1"
 
 
 [build-system]
