@@ -1,0 +1,10 @@
+.vscode
+.venv
+data
+sandbox
+
+.gt_cache/
+src/phyex_gt4py/__pycache__/
+
+*.pyc
+src/phyex_gt4py/drivers/tests.py
