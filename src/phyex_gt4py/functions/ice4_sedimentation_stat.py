@@ -1,3 +1,4 @@
+from __future__ import annotations
 import gt4py.cartesian.gtscript as gtscript
 from config import dtype_float
 from gt4py.cartesian.gtscript import Field

@@ -1,4 +1,5 @@
 
+from __future__ import annotations
 import sys
 sys.path = [*sys.path, *[
         "./src/cloudsc_python/src",

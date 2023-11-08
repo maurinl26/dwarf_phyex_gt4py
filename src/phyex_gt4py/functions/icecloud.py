@@ -1,3 +1,4 @@
+from __future__ import annotations
 import gt4py.cartesian.gtscript as gtscript
 from phyex_gt4py.config  import dtype_float
 from gt4py.cartesian.gtscript import IJ, Field
@@ -8,21 +9,21 @@ from phyex_gt4py.functions.tiwmx import esati, esatw
 
 @gtscript.function()
 def icecloud(
-    p: gtscript.Field[IJ, dtype_float],
-    z: gtscript.Field[IJ, dtype_float],
-    dz: gtscript.Field[IJ, dtype_float],
-    t: gtscript.Field[IJ, dtype_float],
-    r: gtscript.Field[IJ, dtype_float],
+    p: Field[IJ, dtype_float],
+    z: Field[IJ, dtype_float],
+    dz: Field[IJ, dtype_float],
+    t: Field[IJ, dtype_float],
+    r: Field[IJ, dtype_float],
     tstep: dtype_float,
     pblh: dtype_float,
     wcld: Field[IJ, dtype_float],
     w2d: dtype_float,
     # Outputs
-    sifrc: gtscript.Field[IJ, dtype_float],
-    ssio: gtscript.Field[IJ, dtype_float],
-    ssiu: gtscript.Field[IJ, dtype_float],
-    w2d_out: gtscript.Field[IJ, dtype_float],
-    rsi: gtscript.Field[IJ, dtype_float],
+    sifrc: Field[IJ, dtype_float],
+    ssio: Field[IJ, dtype_float],
+    ssiu: Field[IJ, dtype_float],
+    w2d_out: Field[IJ, dtype_float],
+    rsi: Field[IJ, dtype_float],
     # Constants
     epsilo: dtype_float,
     gravity0: dtype_float,
@@ -39,24 +40,24 @@ def icecloud(
 
     Args:
         cst (Constants): _description_
-        p (gtscript.Field[IJ, dtype_float]): pressure at model level (Pa)
-        z (gtscript.Field[IJ, dtype_float]): model level height (m)
-        dz (gtscript.Field[IJ, dtype_float]): model level thickness (m)
-        t (gtscript.Field[IJ, dtype_float]): temperature (K)
-        r (gtscript.Field[IJ, dtype_float]): model level humidity mixing ratio (kg/kg)
+        p (Field[IJ, dtype_float]): pressure at model level (Pa)
+        z (Field[IJ, dtype_float]): model level height (m)
+        dz (Field[IJ, dtype_float]): model level thickness (m)
+        t (Field[IJ, dtype_float]): temperature (K)
+        r (Field[IJ, dtype_float]): model level humidity mixing ratio (kg/kg)
         tstep (dtype_float): timestep
         pblh (dtype_float): planetary layer height (m) (negative values means unknown)
         wcld (Field[IJ, dtype_float]): water and mixed phase cloud cover (negative value means unknown)
         w2d_in (dtype_float): quota between ice crystal concentration between dry and wet
 
-        sifrc (gtscript.Field[IJ, dtype_float]): subgridscale fraction with supersaturation respect to ice
-        ssio (gtscript.Field[IJ, dtype_float]): super-saturation with respect to ice in the supersaturated fraction
-        ssiu (gtscript.Field[IJ, dtype_float]): sub-saturation with respect to ice in the sub saturated fraction
-        w2d_out (gtscript.Field[IJ, dtype_float]): factor used ti get consistency between the mean value of the gridbox and parts of the grid box
-        rsi (gtscript.Field[IJ, dtype_float]): saturation mixing ratio over ice
+        sifrc (Field[IJ, dtype_float]): subgridscale fraction with supersaturation respect to ice
+        ssio (Field[IJ, dtype_float]): super-saturation with respect to ice in the supersaturated fraction
+        ssiu (Field[IJ, dtype_float]): sub-saturation with respect to ice in the sub saturated fraction
+        w2d_out (Field[IJ, dtype_float]): factor used ti get consistency between the mean value of the gridbox and parts of the grid box
+        rsi (Field[IJ, dtype_float]): saturation mixing ratio over ice
 
     Returns:
-        Tuple[gtscript.Field]: sifrc, ssio, ssiu, w2d_out, rsi
+        Tuple[Field]: sifrc, ssio, ssiu, w2d_out, rsi
     """
     sigmax = 3e-4  # assumed rh variation in x axis direction
     sigmay = sigmax  # assumed rh variation in y axis direction

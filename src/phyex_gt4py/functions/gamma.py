@@ -1,3 +1,4 @@
+compute_frac_ice
 import numpy as np
 from phyex_gt4py.config  import dtype_float
 

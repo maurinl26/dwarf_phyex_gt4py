@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, Optional, Tuple
 
 from gt4py.cartesian.gtscript import IJ, K, Field
@@ -6,7 +7,6 @@ from gt4py.cartesian.gtscript import stencil
 from phyex_gt4py.config import backend, dtype_float, dtype_int
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.functions.ice_adjust import latent_heat
-from phyex_gt4py.functions.subgrid_mf import subgrid_mf
 from phyex_gt4py.nebn import Neb
 from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
 from phyex_gt4py.stencils.condensation import condensation
@@ -289,18 +289,78 @@ def ice_adjust(
 
             if hlc_hrc is not None and hlc_hcf is not None:
                 criaut = icep.criautc / rhodref[0, 0, 0]
-                hlc_hrc, hlc_hcf, w1 = subgrid_mf(
-                    criaut, parami.subg_mf_pdf, hlc_hrc, hlc_hcf, cf_mf, w1, tstep
-                )
+                # hlc_hrc, hlc_hcf, w1 = subgrid_mf(
+                #     criaut, parami.subg_mf_pdf, hlc_hrc, hlc_hcf, cf_mf, w1, tstep
+                # )
+                
+                if parami.subg_mf_pdf == "NONE":
+                    if w1 * tstep > cf_mf[0, 0, 0] * criaut:
+                        hlc_hrc += w1 * tstep
+                        hlc_hcf = min(1, hlc_hcf[0, 0, 0] + cf_mf[0, 0, 0])
+
+                elif parami.subg_mf_pdf == "TRIANGLE":
+                    if w1 * tstep > cf_mf[0, 0, 0] * criaut:
+                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w1 * tstep)
+                        hr = w1 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
+                            3 * max(1e-20, w1 * tstep)
+                        )
+
+                    elif 2 * w1 * tstep <= cf_mf[0, 0, 0] * criaut:
+                        hcf = 0
+                        hr = 0
+
+                    else:
+                        hcf = (2 * w1 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
+                            2.0 * max(1.0e-20, w1 * tstep) ** 2
+                        )
+                        hr = (
+                            4.0 * (w1 * tstep) ** 3
+                            - 3.0 * w1 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
+                            + (criaut * cf_mf[0, 0, 0]) ** 3
+                        ) / (3 * max(1.0e-20, w1 * tstep) ** 2)
+
+                    hcf *= cf_mf[0, 0, 0]
+                    hlc_hcf = min(1, hlc_hcf + hcf)
+                    hlc_hrc += hr
 
             if hli_hri is not None and hli_hcf is not None:
                 criaut = min(
                     icep.criauti,
                     10 ** (icep.acriauti * (t_tmp[0, 0, 0] - cst.tt) + icep.bcriauti),
                 )
-                hli_hri, hli_hcf, w2 = subgrid_mf(
-                    criaut, parami.subg_mf_pdf, hli_hri, hli_hcf, cf_mf, w2, tstep
-                )
+                # hli_hri, hli_hcf, w2 = subgrid_mf(
+                #     criaut, parami.subg_mf_pdf, hli_hri, hli_hcf, cf_mf, w2, tstep
+                # )
+                
+                if parami.subg_mf_pdf == "NONE":
+                    if w2 * tstep > cf_mf[0, 0, 0] * criaut:
+                        hli_hri += w2 * tstep
+                        hli_hcf = min(1, hli_hcf[0, 0, 0] + cf_mf[0, 0, 0])
+
+                elif parami.subg_mf_pdf == "TRIANGLE":
+                    if w2 * tstep > cf_mf[0, 0, 0] * criaut:
+                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w2 * tstep)
+                        hr = w2 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
+                            3 * max(1e-20, w2 * tstep)
+                        )
+
+                    elif 2 * w2 * tstep <= cf_mf[0, 0, 0] * criaut:
+                        hcf = 0
+                        hr = 0
+
+                    else:
+                        hcf = (2 * w2 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
+                            2.0 * max(1.0e-20, w2 * tstep) ** 2
+                        )
+                        hr = (
+                            4.0 * (w2 * tstep) ** 3
+                            - 3.0 * w2 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
+                            + (criaut * cf_mf[0, 0, 0]) ** 3
+                        ) / (3 * max(1.0e-20, w2 * tstep) ** 2)
+
+                    hcf *= cf_mf[0, 0, 0]
+                    hli_hcf = min(1, hli_hcf + hcf)
+                    hli_hri += hr
 
         if (
             rv_out is not None

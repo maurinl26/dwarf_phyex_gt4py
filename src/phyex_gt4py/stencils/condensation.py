@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 
 from phyex_gt4py.config  import backend, dtype_float, dtype_int
