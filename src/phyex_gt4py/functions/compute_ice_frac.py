@@ -22,21 +22,25 @@ def compute_frac_ice(
     kerr = 0 if kerr is not None else None
 
     # using temperature
-    if hfrac_ice == "T":
+    # FracIceAdujst.T.value
+    if hfrac_ice == 0:
         frac_ice = max(
             0, min(1, ((tmaxmix - t[0, 0, 0]) / (tmaxmix - tminmix)))
         )
 
     # using temperature with old formula
-    elif hfrac_ice == "O":
+    # FracIceAdujst.O.value
+    elif hfrac_ice == 1:
         frac_ice = max(0, min(1, ((cst.tt - t[0, 0, 0]) / 40)))
 
     # no ice
-    elif hfrac_ice == "N":
+    # FracIceAdujst.N.value
+    elif hfrac_ice == 2:
         frac_ice = 0
 
     # same as previous
-    elif hfrac_ice == "S":
+    # FracIceAdujst.S.value
+    elif hfrac_ice == 3:
         frac_ice = max(0, min(1, frac_ice))
 
     else:
