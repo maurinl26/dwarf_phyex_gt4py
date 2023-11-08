@@ -289,9 +289,6 @@ def ice_adjust(
 
             if hlc_hrc is not None and hlc_hcf is not None:
                 criaut = icep.criautc / rhodref[0, 0, 0]
-                # hlc_hrc, hlc_hcf, w1 = subgrid_mf(
-                #     criaut, parami.subg_mf_pdf, hlc_hrc, hlc_hcf, cf_mf, w1, tstep
-                # )
                 
                 if parami.subg_mf_pdf == "NONE":
                     if w1 * tstep > cf_mf[0, 0, 0] * criaut:
@@ -328,9 +325,6 @@ def ice_adjust(
                     icep.criauti,
                     10 ** (icep.acriauti * (t_tmp[0, 0, 0] - cst.tt) + icep.bcriauti),
                 )
-                # hli_hri, hli_hcf, w2 = subgrid_mf(
-                #     criaut, parami.subg_mf_pdf, hli_hri, hli_hcf, cf_mf, w2, tstep
-                # )
                 
                 if parami.subg_mf_pdf == "NONE":
                     if w2 * tstep > cf_mf[0, 0, 0] * criaut:
@@ -476,11 +470,7 @@ def iteration(
     # 3. subgrid condensation scheme
     if neb.subg_cond:
         condensation(
-            lmfconv=lmfconv,
-            ouseri=True,
             pabs=pabs,
-            zz=zz,
-            rhodref=rhodref,
             t=t_tmp,
             rv_in=rv_in,
             rv_out=rv_out,
@@ -492,18 +482,12 @@ def iteration(
             rs=rs,
             rg=rg,
             sigs=sigs,
-            mfconv=mfconv,
             cldfr=cldfr,
             sigrc=srcs,
-            icldfr=icldfr,
-            wcldfr=wcldfr,
             ls=ls,
             lv=lv,
-            cph=cph,
             ifr=ifr,
             sigqsat=sigqsat,
-            ssio=ssio,
-            ssiu=ssiu,
             hlc_hrc=hlc_hrc,
             hlc_hcf=hlc_hcf,
             hli_hri=hli_hri,
@@ -535,11 +519,7 @@ def iteration(
 
         with computation(PARALLEL), interval(...):
             condensation(
-                lmfconv=lmfconv,
-                ouseri=True,
                 pabs=pabs,
-                zz=zz,
-                rhodref=rhodref,
                 t=t_tmp,
                 rv_in=rv_in,
                 rv_out=rv_out,
@@ -551,22 +531,18 @@ def iteration(
                 rs=rs,
                 rg=rg,
                 sigs=sigs,
-                mfconv=mfconv,
                 cldfr=cldfr,
                 sigrc=srcs,
-                icldfr=icldfr,
-                wcldfr=wcldfr,
                 ls=ls,
                 lv=lv,
-                cph=cph,  # zcph
                 ifr=ifr,
-                sigqsat=sigqsat,  # zsigqsat
-                ssio=ssio,
-                ssiu=ssiu,
+                sigqsat=sigqsat,
                 hlc_hrc=hlc_hrc,
                 hlc_hcf=hlc_hcf,
+                hli_hri=hli_hri,
+                hli_hcf=hli_hcf,
                 ice_cld_wgt=ice_cld_wgt,
-                # Tmp fields used in routine
+                # Temp fields (to initiate)
                 cpd=cpd,
                 rt=rt,  # work array for total water mixing ratio
                 pv=pv,  # thermodynamics
