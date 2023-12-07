@@ -1,9 +1,9 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 import gt4py.cartesian.gtscript as gtscript
-from phyex_gt4py.config  import dtype_float
-from gt4py.cartesian.gtscript import IJ, Field
+from phyex_gt4py.config import dtype_float
+from gt4py.cartesian.gtscript import IJ, Field, sqrt
 
-from phyex_gt4py.constants import Constants
 from phyex_gt4py.functions.tiwmx import esati, esatw
 
 
@@ -30,7 +30,6 @@ def icecloud(
     Rd: dtype_float,
     lvtt: dtype_float,
     cpd: dtype_float,
-    
 ):
     """
     Calculate subgridscale fraction of supersaturation with respect to ice.
@@ -87,10 +86,7 @@ def icecloud(
 
     rhin = max(0.05, min(1, rhw))
     drhdz = (
-        rhin
-        * gravity0
-        / (t[0, 0, 0] * Rd)
-        * (epsilo * lvtt / (cpd * t[0, 0, 0]) - 1)
+        rhin * gravity0 / (t[0, 0, 0] * Rd) * (epsilo * lvtt / (cpd * t[0, 0, 0]) - 1)
     )
 
     zz = 0

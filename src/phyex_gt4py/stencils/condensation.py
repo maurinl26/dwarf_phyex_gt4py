@@ -1,14 +1,14 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 from typing import Optional
 
-from phyex_gt4py.config  import backend, dtype_float, dtype_int
+from phyex_gt4py.config import backend, dtype_float, dtype_int
 from gt4py.cartesian.gtscript import IJ, K, Field, stencil
+from gt4py.cartesian.gtscript import sqrt, exp, log, atan, floor
 
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
 from phyex_gt4py.functions.ice_adjust import _cph, latent_heat
 from phyex_gt4py.functions.temperature import update_temperature
-from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import ParamIce
 
 
 @stencil(backend=backend)
@@ -34,12 +34,11 @@ def condensation(
     sigqsat: Field[
         dtype_float
     ],  # use an extra qsat variance contribution (if osigma is True)
-   # super-saturation with respect to in in the sub saturated fraction
+    # super-saturation with respect to in in the sub saturated fraction
     hlc_hrc: Optional[Field[dtype_float]],  #
     hlc_hcf: Optional[Field[dtype_float]],  # cloud fraction
     hli_hri: Optional[Field[dtype_float]],  #
     hli_hcf: Optional[Field[dtype_float]],
-    
     # Temporary fields
     cpd: Field[dtype_float],
     rt: Field[dtype_float],  # work array for total water mixing ratio
@@ -53,7 +52,6 @@ def condensation(
     sbar: Field[IJ, dtype_float],
     sigma: Field[IJ, dtype_float],
     q1: Field[IJ, dtype_float],
-    
     # Condensation constants
     lvtt: dtype_float,
     lstt: dtype_float,
@@ -69,11 +67,10 @@ def condensation(
     gami: dtype_float,
     Rd: dtype_float,
     Rv: dtype_float,
-    
     # Neb parameters
     frac_ice_adjust: str,
     tmaxmix: dtype_float,
-    tminmix: dtype_float
+    tminmix: dtype_float,
 ):
     src_1d = [
         0.0,
@@ -113,8 +110,8 @@ def condensation(
     ]
 
     # Initialize values
-    with computation(), interval(...):
-        prifact = 1 # ocnd2 == False for AROME
+    with computation(PARALLEL), interval(...):
+        prifact = 1  # ocnd2 == False for AROME
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
@@ -128,12 +125,7 @@ def condensation(
         rt[0, 0, 0] = rv_in + rc_in + ri_in * prifact
 
         if ls is None and lv is None:
-            lv, ls = latent_heat(
-                lvtt,
-                lstt,
-                cpv,
-                tt, 
-                t)
+            lv, ls = latent_heat(lvtt, lstt, cpv, tt, t)
 
         if cph is None:
             cpd = _cph(rv_in, rc_in, ri_in, rr, rs, rg, cpd, cpv, Cl, Ci)

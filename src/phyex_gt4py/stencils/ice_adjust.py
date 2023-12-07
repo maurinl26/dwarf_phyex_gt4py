@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 from typing import Dict, Optional, Tuple
 
@@ -113,7 +114,7 @@ def ice_adjust(
         sigqsat_tmp (Field[dtype_float]): _description_
         cph (Field[dtype_float]): _description_
     """
-    
+
     # GT4Py compatibility
     lvtt = cst.lvtt
     lstt = cst.lstt
@@ -121,37 +122,34 @@ def ice_adjust(
     tt = cst.tt
     Cl = cst.Cl
     Ci = cst.Ci
+
     condensation_constants = {
-        "lvtt":lvtt,
-        "lstt":lstt,
-        "cpv":cpv,
-        "tt":tt,
-        "Cl":Cl,
-        "Ci":Ci,
-        "Rd":cst.Rd,
-        "Rv":cst.Rv,
+        "lvtt": lvtt,
+        "lstt": lstt,
+        "cpv": cpv,
+        "tt": tt,
+        "Cl": Cl,
+        "Ci": Ci,
+        "Rd": cst.Rd,
+        "Rv": cst.Rv,
         "alpw": cst.alpw,
-        "betaw":cst.betaw,
-        "gamw":cst.gamw,
-        "alpi":cst.alpi,
-        "betai":cst.betai,
-        "gami":cst.gami,
+        "betaw": cst.betaw,
+        "gamw": cst.gamw,
+        "alpi": cst.alpi,
+        "betai": cst.betai,
+        "gami": cst.gami,
     }
-    
+
     neb_parameters = {
         "frac_ice_adjust": neb.frac_ice_adjust,
         "tmaxmix": neb.tmaxmix,
-        "tminmix": neb.tminmix
+        "tminmix": neb.tminmix,
     }
-    
+
     # 2.3 Compute the variation of mixing ratio
     with computation(PARALLEL), interval(...):
         t_tmp = th[0, 0, 0] * exn[0, 0, 0]
-        lv, ls = latent_heat(
-                lvtt,
-                lstt,
-                cpv,
-                tt, t_tmp)
+        lv, ls = latent_heat(lvtt, lstt, cpv, tt, t_tmp)
 
     # jiter  = 0
     rv_tmp, rc_tmp, ri_tmp = iteration(
@@ -199,7 +197,7 @@ def ice_adjust(
         sigma=sigma,
         q1=q1,
         condensation_constants=condensation_constants,
-        neb_parameters=neb_parameters
+        neb_parameters=neb_parameters,
     )
 
     # jiter > 0
@@ -250,7 +248,7 @@ def ice_adjust(
             sigma=sigma,
             q1=q1,
             condensation_constants=condensation_constants,
-            neb_parameters=neb_parameters
+            neb_parameters=neb_parameters,
         )
 
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
@@ -289,7 +287,7 @@ def ice_adjust(
 
             if hlc_hrc is not None and hlc_hcf is not None:
                 criaut = icep.criautc / rhodref[0, 0, 0]
-                
+
                 if parami.subg_mf_pdf == "NONE":
                     if w1 * tstep > cf_mf[0, 0, 0] * criaut:
                         hlc_hrc += w1 * tstep
@@ -297,7 +295,9 @@ def ice_adjust(
 
                 elif parami.subg_mf_pdf == "TRIANGLE":
                     if w1 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w1 * tstep)
+                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(
+                            1e-20, w1 * tstep
+                        )
                         hr = w1 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
                             3 * max(1e-20, w1 * tstep)
                         )
@@ -325,7 +325,7 @@ def ice_adjust(
                     icep.criauti,
                     10 ** (icep.acriauti * (t_tmp[0, 0, 0] - cst.tt) + icep.bcriauti),
                 )
-                
+
                 if parami.subg_mf_pdf == "NONE":
                     if w2 * tstep > cf_mf[0, 0, 0] * criaut:
                         hli_hri += w2 * tstep
@@ -333,7 +333,9 @@ def ice_adjust(
 
                 elif parami.subg_mf_pdf == "TRIANGLE":
                     if w2 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w2 * tstep)
+                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(
+                            1e-20, w2 * tstep
+                        )
                         hr = w2 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
                             3 * max(1e-20, w2 * tstep)
                         )
@@ -379,7 +381,6 @@ def ice_adjust(
             ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
             rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
             th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
-
 
 
 @stencil(backend=backend)
@@ -432,11 +433,9 @@ def iteration(
     sbar: Field[IJ, dtype_float],
     sigma: Field[IJ, dtype_float],
     q1: Field[IJ, dtype_float],
-    
-    #parameters
+    # parameters
     condensation_constants: Dict,
-    neb_parameters: Dict
-
+    neb_parameters: Dict,
 ):
     # 2.4 specific heat for moist air at t+1
     with computation(PARALLEL), interval(...):
@@ -507,7 +506,7 @@ def iteration(
             sigma=sigma,
             q1=q1,
             **condensation_constants,
-            **neb_parameters
+            **neb_parameters,
         )
 
     # 3. subgrid condensation scheme
@@ -556,6 +555,5 @@ def iteration(
                 sigma=sigma,
                 q1=q1,
                 **condensation_constants,
-                **neb_parameters
+                **neb_parameters,
             )
-

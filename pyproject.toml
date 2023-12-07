@@ -1,16 +1,20 @@
 [tool.poetry]
 name = "dwarf-phyex-gt4py"
 version = "0.1.0"
-description = ""
-authors = ["maurinl26 <maurin.loic.ac@gmail.com>"]
+description = "Externalized App for Arome/Meso-NH Microphysics in GT4Py"
+authors = ["Loïc Maurin <loic.maurin@meteo.fr>"]
+license = "\"CeCILL-C\""
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-numpy = ">=1.15,<1.27"
+python = ">=3.10,<3.12"
+ifs-physics-common = {git = "https://github.com/maurinl26/ifs-physics-common.git"}
 gt4py = "^1.0.1"
-sympl = "^0.4.1"
 
+
+[tool.poetry.group.dev.dependencies]
+virtualenv = "^20.25.0"
+pre-commit = "^3.5.0"
 
 [build-system]
 requires = ["poetry-core"]
