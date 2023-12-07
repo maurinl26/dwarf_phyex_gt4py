@@ -4,6 +4,7 @@ from gt4py.cartesian.gtscript import Field
 from phyex_gt4py.config import dtype_float
 from gt4py.cartesian import gtscript
 from gt4py.cartesian.gtscript import log, exp
+from phyex_gt4py.functions.sign import sign
 
 
 @gtscript.function
