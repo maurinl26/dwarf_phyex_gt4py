@@ -12,6 +12,8 @@ from phyex_gt4py.nebn import Neb
 from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
 from phyex_gt4py.stencils.condensation import condensation
 
+from ifs_physics_common.framework.config import GT4PyConfig
+
 
 @stencil(backend=backend)
 def ice_adjust(
@@ -509,7 +511,7 @@ def iteration(
             **neb_parameters,
         )
 
-    # 3. subgrid condensation scheme
+    # 3. not subgrid condensation scheme
     else:
         # initialization
         with computation(PARALLEL), interval(...):

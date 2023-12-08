@@ -4,7 +4,7 @@ import gt4py.cartesian.gtscript as gtscript
 from phyex_gt4py.config import dtype_float
 from gt4py.cartesian.gtscript import sqrt, exp
 
-from phyex_gt4py.constants import Constants
+from phyex_gt4py.functions.sign import sign
 
 
 @gtscript.function
