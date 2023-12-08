@@ -12,7 +12,11 @@ if TYPE_CHECKING:
 
     from ifs_physics_common.framework.config import GT4PyConfig
     from ifs_physics_common.framework.grid import ComputationalGrid, DimSymbol
-    from ifs_physics_common.utils.typingx import DataArray, DataArrayDict
+    from ifs_physics_common.utils.typingx import (
+        DataArray,
+        DataArrayDict,
+        NDArrayLikeDict,
+    )
 
 
 def allocate_state(
@@ -35,7 +39,19 @@ def allocate_state(
     allocate_f_ij = partial(_allocate, grid_id=(I, J), units="", dtype="float")
     allocate_i_ij = partial(_allocate, grid_id=(I, J), units="", dtype="int")
 
-    return {}
+    return {
+        "zzf": allocate_f(),
+        "rhodj": allocate_f(),
+        "exnref": allocate_f(),
+        "rhodref": allocate_f(),
+        "pabsm": allocate_f(),
+        "tht": allocate_f(),
+        "sigs": allocate_f(),
+        "mfconv": allocate_f(),
+        "rc_mf": allocate_f(),
+        "ri_mf": allocate_f(),
+        "cf_mf": allocate_f(),
+    }
 
 
 def get_state(
