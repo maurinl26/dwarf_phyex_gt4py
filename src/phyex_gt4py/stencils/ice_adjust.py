@@ -5,95 +5,96 @@ from typing import Dict, Optional, Tuple
 from gt4py.cartesian.gtscript import IJ, K, Field
 from gt4py.cartesian.gtscript import stencil
 
-from phyex_gt4py.config import backend, dtype_float, dtype_int
 from phyex_gt4py.constants import Constants
 from phyex_gt4py.functions.ice_adjust import latent_heat
 from phyex_gt4py.nebn import Neb
 from phyex_gt4py.rain_ice_param import ParamIce, RainIceParam
 from phyex_gt4py.stencils.condensation import condensation
+from ifs_physics_common.framework.stencil import stencil_collection
+
 
 from ifs_physics_common.framework.config import GT4PyConfig
 
 
-@stencil(backend=backend)
+@stencil_collection("ice_adjust")
 def ice_adjust(
     cst: Constants,
     parami: ParamIce,
     icep: RainIceParam,
     neb: Neb,
     compute_srcs: bool,
-    itermax: dtype_int,
-    tstep: dtype_float,  # Double timestep
-    nrr: dtype_int,  # Number of moist variables
+    itermax: "int",
+    tstep: "float",  # Double timestep
+    nrr: "int",  # Number of moist variables
     lmfconv: bool,  # size (mfconv) != 0
     buname: str,  # TODO : implement budget storage methods
     # IN - Inputs
-    sigqsat: Field[dtype_float],  # coeff applied to qsat variance
-    rhodj: Field[dtype_float],  # density x jacobian
-    exnref: Field[dtype_float],  # ref exner pression
-    rhodref: Field[dtype_float],  #
-    pabs: Field[dtype_float],  # absolute pressure at t
-    sigs: Field[dtype_float],  # Sigma_s at time t
-    mfconv: Field[dtype_float],
-    cf_mf: Field[dtype_float],  # convective mass flux fraction
-    rc_mf: Field[dtype_float],  # convective mass flux liquid mixing ratio
-    ri_mf: Field[dtype_float],  # convective mass flux ice mixing ratio
+    sigqsat: Field["float"],  # coeff applied to qsat variance
+    rhodj: Field["float"],  # density x jacobian
+    exnref: Field["float"],  # ref exner pression
+    rhodref: Field["float"],  #
+    pabs: Field["float"],  # absolute pressure at t
+    sigs: Field["float"],  # Sigma_s at time t
+    mfconv: Field["float"],
+    cf_mf: Field["float"],  # convective mass flux fraction
+    rc_mf: Field["float"],  # convective mass flux liquid mixing ratio
+    ri_mf: Field["float"],  # convective mass flux ice mixing ratio
     # INOUT - Tendencies
-    th: Field[dtype_float],
-    rv: Field[dtype_float],  # water vapour m.r. to adjust
-    rc: Field[dtype_float],  # cloud water m.r. to adjust
-    ri: Field[dtype_float],  # cloud ice m.r. to adjust
-    rr: Field[dtype_float],  # rain water m.r. to adjust
-    rs: Field[dtype_float],  # aggregate m.r. to adjust
-    rg: Field[dtype_float],  # graupel m.r. to adjust
-    rh: Optional[Field[dtype_float]],  # hail m.r. to adjust (if krr = 7)
-    ths: Field[dtype_float],  # theta source
-    rvs: Field[dtype_float],  # water vapour m.r. source
-    rcs: Field[dtype_float],  # cloud water m.r. source
-    ris: Field[dtype_float],  # cloud ice m.r. at t+1
-    cldfr: Field[dtype_float],
-    srcs: Field[dtype_float],  # second order flux s at time t+1
+    th: Field["float"],
+    rv: Field["float"],  # water vapour m.r. to adjust
+    rc: Field["float"],  # cloud water m.r. to adjust
+    ri: Field["float"],  # cloud ice m.r. to adjust
+    rr: Field["float"],  # rain water m.r. to adjust
+    rs: Field["float"],  # aggregate m.r. to adjust
+    rg: Field["float"],  # graupel m.r. to adjust
+    rh: Optional[Field["float"]],  # hail m.r. to adjust (if krr = 7)
+    ths: Field["float"],  # theta source
+    rvs: Field["float"],  # water vapour m.r. source
+    rcs: Field["float"],  # cloud water m.r. source
+    ris: Field["float"],  # cloud ice m.r. at t+1
+    cldfr: Field["float"],
+    srcs: Field["float"],  # second order flux s at time t+1
     # OUT - Diagnostics
-    icldfr: Field[dtype_float],  # ice cloud fraction
-    wcldfr: Field[dtype_float],  # water or mixed-phase cloud fraction
-    ifr: Field[dtype_float],  # ratio cloud ice moist part to dry part
+    icldfr: Field["float"],  # ice cloud fraction
+    wcldfr: Field["float"],  # water or mixed-phase cloud fraction
+    ifr: Field["float"],  # ratio cloud ice moist part to dry part
     ssio: Field[
-        dtype_float
+        "float"
     ],  # super-saturation with respect to ice in the super saturated fraction
     ssiu: Field[
-        dtype_float
+        "float"
     ],  # sub-saturation with respect to ice in the subsaturated fraction
-    hlc_hrc: Field[dtype_float],
-    hlc_hcf: Field[dtype_float],
-    hli_hri: Field[dtype_float],
-    hli_hcf: Field[dtype_float],
+    hlc_hrc: Field["float"],
+    hlc_hcf: Field["float"],
+    hli_hri: Field["float"],
+    hli_hcf: Field["float"],
     # TODO : rework, remove unused fields
-    th_out: Field[dtype_float],  # theta out
-    rv_out: Field[dtype_float],  # water vapour m.r. source
-    rc_out: Field[dtype_float],  # cloud water m.r. source
-    ri_out: Field[dtype_float],  # cloud ice m.r. source
+    th_out: Field["float"],  # theta out
+    rv_out: Field["float"],  # water vapour m.r. source
+    rc_out: Field["float"],  # cloud water m.r. source
+    ri_out: Field["float"],  # cloud ice m.r. source
     # Temporary fields
-    rv_tmp: Field[dtype_float],
-    ri_tmp: Field[dtype_float],
-    rc_tmp: Field[dtype_float],
-    t_tmp: Field[dtype_float],
-    cph: Field[dtype_float],  # guess of the CPh for the mixing
-    lv: Field[dtype_float],  # guess of the Lv at t+1
-    ls: Field[dtype_float],  # guess of the Ls at t+1
-    criaut: Field[dtype_float],  # autoconversion thresholds
+    rv_tmp: Field["float"],
+    ri_tmp: Field["float"],
+    rc_tmp: Field["float"],
+    t_tmp: Field["float"],
+    cph: Field["float"],  # guess of the CPh for the mixing
+    lv: Field["float"],  # guess of the Lv at t+1
+    ls: Field["float"],  # guess of the Ls at t+1
+    criaut: Field["float"],  # autoconversion thresholds
     # Temporary fields # Condensation
-    cpd: Field[dtype_float],
-    rt: Field[dtype_float],  # work array for total water mixing ratio
-    pv: Field[dtype_float],  # thermodynamics
-    piv: Field[dtype_float],  # thermodynamics
-    qsl: Field[dtype_float],  # thermodynamics
-    qsi: Field[dtype_float],
-    frac_tmp: Field[IJ, dtype_float],  # ice fraction
-    cond_tmp: Field[IJ, dtype_float],  # condensate
-    a: Field[IJ, dtype_float],  # related to computation of Sig_s
-    sbar: Field[IJ, dtype_float],
-    sigma: Field[IJ, dtype_float],
-    q1: Field[IJ, dtype_float],
+    cpd: Field["float"],
+    rt: Field["float"],  # work array for total water mixing ratio
+    pv: Field["float"],  # thermodynamics
+    piv: Field["float"],  # thermodynamics
+    qsl: Field["float"],  # thermodynamics
+    qsi: Field["float"],
+    frac_tmp: Field[IJ, "float"],  # ice fraction
+    cond_tmp: Field[IJ, "float"],  # condensate
+    a: Field[IJ, "float"],  # related to computation of Sig_s
+    sbar: Field[IJ, "float"],
+    sigma: Field[IJ, "float"],
+    q1: Field[IJ, "float"],
 ):
     """_summary_
 
@@ -103,18 +104,18 @@ def ice_adjust(
         icep (RainIceParam): microphysical factors used in the warm and cold schemes
         neb (Neb): constants for nebulosity calculations
         compute_srcs (bool): boolean to compute second order flux
-        itermax (dtype_int): _description_
-        tstep (dtype_float): double time step
+        itermax ("int"): _description_
+        tstep ("float"): double time step
         krr (int)
-        icldfr (Field[dtype_float]): _description_
-        hlc_hcf (Field[dtype_float]): _description_
-        hli_hri (Field[dtype_float]): _description_
-        hli_hcf (Field[dtype_float]): _description_
-        rv_tmp (Field[dtype_float]): _description_
-        ri_tmp (Field[dtype_float]): _description_
-        rc_tmp (Field[dtype_float]): _description_
-        sigqsat_tmp (Field[dtype_float]): _description_
-        cph (Field[dtype_float]): _description_
+        icldfr (Field["float"]): _description_
+        hlc_hcf (Field["float"]): _description_
+        hli_hri (Field["float"]): _description_
+        hli_hcf (Field["float"]): _description_
+        rv_tmp (Field["float"]): _description_
+        ri_tmp (Field["float"]): _description_
+        rc_tmp (Field["float"]): _description_
+        sigqsat_tmp (Field["float"]): _description_
+        cph (Field["float"]): _description_
     """
 
     # GT4Py compatibility
@@ -385,56 +386,56 @@ def ice_adjust(
             th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
 
 
-@stencil(backend=backend)
+@stencil_collection("ice_adjust")
 def iteration(
     cst: Constants,
     neb: Neb,
-    krr: dtype_int,
+    krr: "int",
     lmfconv: bool,
-    pabs: Field[dtype_float],
-    zz: Field[dtype_float],
-    rhodref: Field[dtype_float],
-    t_tmp: Field[dtype_float],
-    lv: Field[dtype_float],
-    ls: Field[dtype_float],
-    rv_in: Field[dtype_float],
-    ri_in: Field[dtype_float],
-    rc_in: Field[dtype_float],
-    rv_out: Field[dtype_float],
-    rc_out: Field[dtype_float],
-    ri_out: Field[dtype_float],
-    rr: Field[dtype_float],
-    rs: Field[dtype_float],
-    rg: Field[dtype_float],
-    rh: Field[dtype_float],
-    sigs: Field[dtype_float],
-    mfconv: Field[dtype_float],
-    cldfr: Field[dtype_float],
-    sigqsat: Field[dtype_float],
-    srcs: Field[dtype_float],
-    icldfr: Field[dtype_float],
-    wcldfr: Field[dtype_float],
-    ssio: Field[dtype_float],
-    ssiu: Field[dtype_float],
-    ifr: Field[dtype_float],
-    hlc_hrc: Field[dtype_float],
-    hlc_hcf: Field[dtype_float],
-    hli_hri: Field[dtype_float],
-    hli_hcf: Field[dtype_float],
-    ice_cld_wgt: Field[dtype_float],
+    pabs: Field["float"],
+    zz: Field["float"],
+    rhodref: Field["float"],
+    t_tmp: Field["float"],
+    lv: Field["float"],
+    ls: Field["float"],
+    rv_in: Field["float"],
+    ri_in: Field["float"],
+    rc_in: Field["float"],
+    rv_out: Field["float"],
+    rc_out: Field["float"],
+    ri_out: Field["float"],
+    rr: Field["float"],
+    rs: Field["float"],
+    rg: Field["float"],
+    rh: Field["float"],
+    sigs: Field["float"],
+    mfconv: Field["float"],
+    cldfr: Field["float"],
+    sigqsat: Field["float"],
+    srcs: Field["float"],
+    icldfr: Field["float"],
+    wcldfr: Field["float"],
+    ssio: Field["float"],
+    ssiu: Field["float"],
+    ifr: Field["float"],
+    hlc_hrc: Field["float"],
+    hlc_hcf: Field["float"],
+    hli_hri: Field["float"],
+    hli_hcf: Field["float"],
+    ice_cld_wgt: Field["float"],
     # For condensation
-    cpd: Field[dtype_float],
-    rt: Field[dtype_float],  # work array for total water mixing ratio
-    pv: Field[dtype_float],  # thermodynamics
-    piv: Field[dtype_float],  # thermodynamics
-    qsl: Field[dtype_float],  # thermodynamics
-    qsi: Field[dtype_float],
-    frac_tmp: Field[IJ, dtype_float],  # ice fraction
-    cond_tmp: Field[IJ, dtype_float],  # condensate
-    a: Field[IJ, dtype_float],  # related to computation of Sig_s
-    sbar: Field[IJ, dtype_float],
-    sigma: Field[IJ, dtype_float],
-    q1: Field[IJ, dtype_float],
+    cpd: Field["float"],
+    rt: Field["float"],  # work array for total water mixing ratio
+    pv: Field["float"],  # thermodynamics
+    piv: Field["float"],  # thermodynamics
+    qsl: Field["float"],  # thermodynamics
+    qsi: Field["float"],
+    frac_tmp: Field[IJ, "float"],  # ice fraction
+    cond_tmp: Field[IJ, "float"],  # condensate
+    a: Field[IJ, "float"],  # related to computation of Sig_s
+    sbar: Field[IJ, "float"],
+    sigma: Field[IJ, "float"],
+    q1: Field[IJ, "float"],
     # parameters
     condensation_constants: Dict,
     neb_parameters: Dict,

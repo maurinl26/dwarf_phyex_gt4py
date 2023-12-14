@@ -2,75 +2,75 @@
 from __future__ import annotations
 from typing import Optional
 
-from phyex_gt4py.config import backend, dtype_float, dtype_int
 from gt4py.cartesian.gtscript import IJ, K, Field, stencil
 from gt4py.cartesian.gtscript import sqrt, exp, log, atan, floor
 
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
 from phyex_gt4py.functions.ice_adjust import _cph, latent_heat
 from phyex_gt4py.functions.temperature import update_temperature
+from ifs_physics_common.framework.stencil import stencil_collection
 
 
-@stencil(backend=backend)
+@stencil_collection("ice_adjust")
 def condensation(
-    pabs: Field[dtype_float],  # pressure (Pa)
-    t: Field[dtype_float],  # T (K)
-    rv_in: Field[dtype_float],
-    rc_in: Field[dtype_float],
-    ri_in: Field[dtype_float],
-    rv_out: Field[dtype_float],
-    rc_out: Field[dtype_float],
-    ri_out: Field[dtype_float],
-    rs: Field[dtype_float],  # grid scale mixing ratio of snow (kg/kg)
-    rr: Field[dtype_float],  # grid scale mixing ratio of rain (kg/kg)
-    rg: Field[dtype_float],  # grid scale mixing ratio of graupel (kg/kg)
-    sigs: Field[dtype_float],  # Sigma_s from turbulence scheme
-    cldfr: Field[dtype_float],
-    sigrc: Field[dtype_float],  # s r_c / sig_s ** 2
-    ls: Optional[Field[dtype_float]],
-    lv: Optional[Field[dtype_float]],
-    cph: Optional[Field[dtype_float]],
-    ifr: Field[dtype_float],  # ratio cloud ice moist part
+    pabs: Field["float"],  # pressure (Pa)
+    t: Field["float"],  # T (K)
+    rv_in: Field["float"],
+    rc_in: Field["float"],
+    ri_in: Field["float"],
+    rv_out: Field["float"],
+    rc_out: Field["float"],
+    ri_out: Field["float"],
+    rs: Field["float"],  # grid scale mixing ratio of snow (kg/kg)
+    rr: Field["float"],  # grid scale mixing ratio of rain (kg/kg)
+    rg: Field["float"],  # grid scale mixing ratio of graupel (kg/kg)
+    sigs: Field["float"],  # Sigma_s from turbulence scheme
+    cldfr: Field["float"],
+    sigrc: Field["float"],  # s r_c / sig_s ** 2
+    ls: Optional[Field["float"]],
+    lv: Optional[Field["float"]],
+    cph: Optional[Field["float"]],
+    ifr: Field["float"],  # ratio cloud ice moist part
     sigqsat: Field[
-        dtype_float
+        "float"
     ],  # use an extra qsat variance contribution (if osigma is True)
     # super-saturation with respect to in in the sub saturated fraction
-    hlc_hrc: Optional[Field[dtype_float]],  #
-    hlc_hcf: Optional[Field[dtype_float]],  # cloud fraction
-    hli_hri: Optional[Field[dtype_float]],  #
-    hli_hcf: Optional[Field[dtype_float]],
+    hlc_hrc: Optional[Field["float"]],  #
+    hlc_hcf: Optional[Field["float"]],  # cloud fraction
+    hli_hri: Optional[Field["float"]],  #
+    hli_hcf: Optional[Field["float"]],
     # Temporary fields
-    cpd: Field[dtype_float],
-    rt: Field[dtype_float],  # work array for total water mixing ratio
-    pv: Field[dtype_float],  # thermodynamics
-    piv: Field[dtype_float],  # thermodynamics
-    qsl: Field[dtype_float],  # thermodynamics
-    qsi: Field[dtype_float],
-    frac_tmp: Field[IJ, dtype_float],  # ice fraction
-    cond_tmp: Field[IJ, dtype_float],  # condensate
-    a: Field[IJ, dtype_float],  # related to computation of Sig_s
-    sbar: Field[IJ, dtype_float],
-    sigma: Field[IJ, dtype_float],
-    q1: Field[IJ, dtype_float],
+    cpd: Field["float"],
+    rt: Field["float"],  # work array for total water mixing ratio
+    pv: Field["float"],  # thermodynamics
+    piv: Field["float"],  # thermodynamics
+    qsl: Field["float"],  # thermodynamics
+    qsi: Field["float"],
+    frac_tmp: Field[IJ, "float"],  # ice fraction
+    cond_tmp: Field[IJ, "float"],  # condensate
+    a: Field[IJ, "float"],  # related to computation of Sig_s
+    sbar: Field[IJ, "float"],
+    sigma: Field[IJ, "float"],
+    q1: Field[IJ, "float"],
     # Condensation constants
-    lvtt: dtype_float,
-    lstt: dtype_float,
-    tt: dtype_float,
-    cpv: dtype_float,
-    Cl: dtype_float,
-    Ci: dtype_float,
-    alpw: dtype_float,
-    betaw: dtype_float,
-    gamw: dtype_float,
-    alpi: dtype_float,
-    betai: dtype_float,
-    gami: dtype_float,
-    Rd: dtype_float,
-    Rv: dtype_float,
+    lvtt: "float",
+    lstt: "float",
+    tt: "float",
+    cpv: "float",
+    Cl: "float",
+    Ci: "float",
+    alpw: "float",
+    betaw: "float",
+    gamw: "float",
+    alpi: "float",
+    betai: "float",
+    gami: "float",
+    Rd: "float",
+    Rv: "float",
     # Neb parameters
     frac_ice_adjust: str,
-    tmaxmix: dtype_float,
-    tminmix: dtype_float,
+    tmaxmix: "float",
+    tminmix: "float",
 ):
     src_1d = [
         0.0,
@@ -186,7 +186,7 @@ def condensation(
 
         inq1 = min(
             10, max(-22, floor(min(-100, 2 * q1[0, 0])))
-        )  # inner min/max prevents sigfpe when 2*zq1 does not fit dtype_into an dtype_int
+        )  # inner min/max prevents sigfpe when 2*zq1 does not fit dtype_into an "int"
         inc = 2 * q1 - inq1
 
         sigrc[0, 0, 0] = min(
