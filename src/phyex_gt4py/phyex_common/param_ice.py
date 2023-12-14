@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
 from typing import Literal
-from phyex_gt4py.config import dtype_float, dtype_int
 import numpy as np
 
 
@@ -14,7 +13,7 @@ class ParamIce:
     lsedic: bool = field(default=True)  # Enable the droplets sedimentation
     ldeposc: bool = field(default=False)  # Enable cloud droplets deposition
 
-    vdeposc: dtype_float = field(default=0.02)  # Droplet deposition velocity
+    vdeposc: "float" = field(default=0.02)  # Droplet deposition velocity
 
     pristine_ice: str = field(default="PLAT")  # Pristine ice type PLAT, COLU, or BURO
     sedim: str = field(default="SPLI")  # Sedimentation calculation mode
@@ -29,11 +28,11 @@ class ParamIce:
     lnullweth: bool = field(default=True)
     lwethpost: bool = field(default=True)
     snowriming: str = field(default="M90")  # OLD or M90 for Murakami 1990 formulation
-    fracm90: dtype_float = field(default=0.1)
-    nmaxiter_micro: dtype_int = field(
+    fracm90: "float" = field(default=0.1)
+    nmaxiter_micro: "int" = field(
         default=5
     )  # max number of iterations for mixing ratio
-    mrstep: dtype_float = field(
+    mrstep: "float" = field(
         default=5.0e-5
     )  # max mixing ratio for mixing ratio splitting
     lconvhg: bool = field(default=False)  # Allow the conversion from hail to graupel
@@ -41,9 +40,7 @@ class ParamIce:
         default=True
     )  # Limit rain contact freezing to possible heat exchange
 
-    step_ts: dtype_float = field(
-        default=0
-    )  # Approximative time step for time-splitting
+    step_ts: "float" = field(default=0)  # Approximative time step for time-splitting
 
     subg_rc_rr_accr: str = field(default="NONE")  # subgrid rc-rr accretion
     subg_rr_evap: str = field(default="NONE")  # subgrid rr evaporation
@@ -64,7 +61,7 @@ class ParamIce:
         default=False
     )  # sedimentation done before (.FALSE.) or after (.TRUE.) microphysics
 
-    split_maxcfl: dtype_float = field(
+    split_maxcfl: "float" = field(
         default=0.8
     )  # Maximum CFL number allowed for SPLIT scheme
     lsnow_t: bool = field(default=False)  # Snow parameterization from Wurtz (2021)
@@ -73,15 +70,15 @@ class ParamIce:
     lpack_micro: bool = field(default=True)
     lcriauti: bool = field(default=True)
 
-    npromicro: dtype_int = field(default=0)
+    npromicro: "int" = field(default=0)
 
-    criauti_nam: dtype_float = field(default=0.2e-4)
-    acriauti_nam: dtype_float = field(default=0.06)
-    brcriauti_nam: dtype_float = field(default=-3.5)
-    t0criauti_nam: dtype_float = field(init=False)
-    criautc_nam: dtype_float = field(default=0.5e-3)
-    rdepsred_nam: dtype_float = field(default=1)
-    rdepgred_nam: dtype_float = field(default=1)
+    criauti_nam: "float" = field(default=0.2e-4)
+    acriauti_nam: "float" = field(default=0.06)
+    brcriauti_nam: "float" = field(default=-3.5)
+    t0criauti_nam: "float" = field(init=False)
+    criautc_nam: "float" = field(default=0.5e-3)
+    rdepsred_nam: "float" = field(default=1)
+    rdepgred_nam: "float" = field(default=1)
     lcond2: bool = field(default=False)
     frmin_nam: np.ndarray = field(init=False)
 

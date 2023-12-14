@@ -2,7 +2,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
-from phyex_gt4py.config import dtype_float, dtype_int
 
 
 class FracIceAdjust(Enum):
@@ -17,12 +16,12 @@ class Neb:
     """Declaration of
 
     Args:
-        tminmix (dtype_float): minimum temperature for mixed phase
-        tmaxmix (dtype_float): maximum temperature for mixed phase
-        hgt_qs (dtype_float): switch for height dependant VQSIGSAT
+        tminmix ("float"): minimum temperature for mixed phase
+        tmaxmix ("float"): maximum temperature for mixed phase
+        hgt_qs ("float"): switch for height dependant VQSIGSAT
         frac_ice_adjust (str): ice fraction for adjustments
         frac_ice_shallow (str): ice fraction for shallow_mf
-        vsigqsat (dtype_float): coeff applied to qsat variance contribution
+        vsigqsat ("float"): coeff applied to qsat variance contribution
         condens (str): subgrid condensation PDF
         lambda3 (str): lambda3 choice for subgrid cloud scheme
         statnw (bool): updated full statistical cloud scheme
@@ -33,12 +32,12 @@ class Neb:
 
     hprogram: Literal["AROME", "MESO-NH", "LMDZ"]
 
-    tminmix: dtype_float = field(default=273.16)  # minimum temperature for mixed phase
-    tmaxmix: dtype_float = field(default=253.16)  # maximum temperature for mixed phase
-    hgt_qs: dtype_float = field(default=False)  # switch for height dependant VQSIGSAT
+    tminmix: "float" = field(default=273.16)  # minimum temperature for mixed phase
+    tmaxmix: "float" = field(default=253.16)  # maximum temperature for mixed phase
+    hgt_qs: "float" = field(default=False)  # switch for height dependant VQSIGSAT
     frac_ice_adjust: FracIceAdjust = field(default="S")  # ice fraction for adjustments
     frac_ice_shallow: str = field(default="S")  # ice fraction for shallow_mf
-    vsigqsat: dtype_float = field(
+    vsigqsat: "float" = field(
         default=0.02
     )  # coeff applied to qsat variance contribution
     condens: str = field(default="CB02")  # subgrid condensation PDF

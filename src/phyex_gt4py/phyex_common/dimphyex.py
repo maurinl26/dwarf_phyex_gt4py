@@ -1,12 +1,6 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
 from enum import Enum
-
-from config import dtype, dtype_int
-
-from phyex_gt4py.budget import TBudgetConf
-from phyex_gt4py.constants import Constants
-from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import CloudPar, ParamIce, RainIceDescr, RainIceParam
 
 
 class VerticalLevelOrder(Enum):

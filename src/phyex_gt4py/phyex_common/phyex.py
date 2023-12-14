@@ -2,11 +2,9 @@
 from dataclasses import dataclass, field
 from typing import Literal, Tuple
 
-from phyex_gt4py.budget import TBudgetConf
-from phyex_gt4py.config import dtype_float, dtype_int
-from phyex_gt4py.constants import Constants
-from phyex_gt4py.nebn import Neb
-from phyex_gt4py.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
+from phyex_gt4py.phyex_common.constants import Constants
+from phyex_gt4py.phyex_common.nebn import Neb
+from phyex_gt4py.phyex_common.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
 
 
 @dataclass
@@ -40,7 +38,7 @@ class Phyex:
     """
 
     program: Literal["AROME", "MESO-NH"]
-    timestep: dtype_float = field(default=1)
+    timestep: "float" = field(default=1)
 
     cst: Constants = field(init=False)
     param_icen: ParamIce = field(init=False)
@@ -48,19 +46,19 @@ class Phyex:
     rain_ice_paramn: RainIceParam = field(init=False)
     nebn: Neb = field(init=False)
 
-    itermax: dtype_int = field(default=1)
+    itermax: "int" = field(default=1)
 
     # Miscellaneous terms
     lmfconv: bool = field(default=True)
     compute_src: bool = field(default=True)
-    khalo: dtype_int = field(default=1)
+    khalo: "int" = field(default=1)
     program: str = field(default="AROME")
     nomixlg: bool = field(default=False)
     ocean: bool = field(default=False)
     deepoc: bool = field(default=False)
     couples: bool = field(default=False)
     blowsnow: bool = field(default=False)
-    rsnow: dtype_float = field(default=1.0)
+    rsnow: "float" = field(default=1.0)
     lbcx: Tuple[str] = field(default=("CYCL", "CYCL"))
     lbcy: Tuple[str] = field(default=("CYCL", "CYCL"))
     ibm: bool = field(default=False)

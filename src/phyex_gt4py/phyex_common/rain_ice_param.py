@@ -1,107 +1,105 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
 from math import gamma, log
 from typing import Tuple
 
 import numpy as np
 
-from phyex_gt4py.config import dtype_float, dtype_int
-from phyex_gt4py.constants import Constants
-from phyex_gt4py.param_ice import ParamIce
-from phyex_gt4py.rain_ice_descr import RainIceDescr
+from phyex_gt4py.phyex_common.constants import Constants
+from phyex_gt4py.phyex_common.param_ice import ParamIce
+from phyex_gt4py.phyex_common.rain_ice_descr import RainIceDescr
 
 
 @dataclass
 class RainIceParam:
-    fsedc: Tuple[dtype_float] = field(
-        init=False
-    )  # Constants for sedimentation fluxes of C
-    fsedr: dtype_float = field(init=False)  # Constants for sedimentation
-    exsedr: dtype_float = field(init=False)
-    fsedi: dtype_float = field(init=False)
-    excsedi: dtype_float = field(init=False)
-    exrsedi: dtype_float = field(init=False)
-    fseds: dtype_float = field(init=False)
-    exseds: dtype_float = field(init=False)
-    fsedg: dtype_float = field(init=False)
-    exsedg: dtype_float = field(init=False)
+    fsedc: Tuple["float"] = field(init=False)  # Constants for sedimentation fluxes of C
+    fsedr: "float" = field(init=False)  # Constants for sedimentation
+    exsedr: "float" = field(init=False)
+    fsedi: "float" = field(init=False)
+    excsedi: "float" = field(init=False)
+    exrsedi: "float" = field(init=False)
+    fseds: "float" = field(init=False)
+    exseds: "float" = field(init=False)
+    fsedg: "float" = field(init=False)
+    exsedg: "float" = field(init=False)
 
     # Constants for heterogeneous ice nucleation HEN
-    nu10: dtype_float = field(init=False)
-    alpha1: dtype_float = 4.5
-    beta1: dtype_float = 0.6
-    nu20: dtype_float = field(init=False)
-    alpha2: dtype_float = 12.96
-    beta2: dtype_float = 0.639
-    mnu0: dtype_float = 6.88e-13  # Mass of nucleated ice crystal
+    nu10: "float" = field(init=False)
+    alpha1: "float" = 4.5
+    beta1: "float" = 0.6
+    nu20: "float" = field(init=False)
+    alpha2: "float" = 12.96
+    beta2: "float" = 0.639
+    mnu0: "float" = 6.88e-13  # Mass of nucleated ice crystal
 
     # Constants for homogeneous ice nucleation HON
-    alpha3: dtype_float = -3.075
-    beta3: dtype_float = 81.00356
-    hon: dtype_float = field(init=False)
+    alpha3: "float" = -3.075
+    beta3: "float" = 81.00356
+    hon: "float" = field(init=False)
 
     # Constants for raindrop and evaporation EVA
-    scfac: dtype_float = field(init=False)
-    o0evar: dtype_float = field(init=False)
-    o1evar: dtype_float = field(init=False)
-    ex0evar: dtype_float = field(init=False)
-    ex1evar: dtype_float = field(init=False)
-    o0depi: dtype_float = field(init=False)  # deposition DEP on I
-    o2depi: dtype_float = field(init=False)
-    o0deps: dtype_float = field(init=False)  # on S
-    o1deps: dtype_float = field(init=False)
-    ex0deps: dtype_float = field(init=False)
-    ex1deps: dtype_float = field(init=False)
-    rdepsred: dtype_float = field(init=False)
-    o0depg: dtype_float = field(init=False)  # on G
-    o1depg: dtype_float = field(init=False)
-    ex0depg: dtype_float = field(init=False)
-    ex1depg: dtype_float = field(init=False)
-    rdepgred: dtype_float = field(init=False)
+    scfac: "float" = field(init=False)
+    o0evar: "float" = field(init=False)
+    o1evar: "float" = field(init=False)
+    ex0evar: "float" = field(init=False)
+    ex1evar: "float" = field(init=False)
+    o0depi: "float" = field(init=False)  # deposition DEP on I
+    o2depi: "float" = field(init=False)
+    o0deps: "float" = field(init=False)  # on S
+    o1deps: "float" = field(init=False)
+    ex0deps: "float" = field(init=False)
+    ex1deps: "float" = field(init=False)
+    rdepsred: "float" = field(init=False)
+    o0depg: "float" = field(init=False)  # on G
+    o1depg: "float" = field(init=False)
+    ex0depg: "float" = field(init=False)
+    ex1depg: "float" = field(init=False)
+    rdepgred: "float" = field(init=False)
 
     # Constants for pristine ice autoconversion : AUT
-    timauti: dtype_float = 1e-3  # Time constant at T=T_t
-    texauti: dtype_float = 0.015
-    criauti: dtype_float = field(init=False)
-    t0criauti: dtype_float = field(init=False)
-    acriauti: dtype_float = field(init=False)
-    bcriauti: dtype_float = field(init=False)
+    timauti: "float" = 1e-3  # Time constant at T=T_t
+    texauti: "float" = 0.015
+    criauti: "float" = field(init=False)
+    t0criauti: "float" = field(init=False)
+    acriauti: "float" = field(init=False)
+    bcriauti: "float" = field(init=False)
 
     # Constants for snow aggregation : AGG
-    colis: dtype_float = 0.25  # Collection efficiency of I + S
-    colexis: dtype_float = 0.05  # Temperature factor of the I+S collection efficiency
-    fiaggs: dtype_float = field(init=False)
-    exiaggs: dtype_float = field(init=False)
+    colis: "float" = 0.25  # Collection efficiency of I + S
+    colexis: "float" = 0.05  # Temperature factor of the I+S collection efficiency
+    fiaggs: "float" = field(init=False)
+    exiaggs: "float" = field(init=False)
 
     # Constants for cloud droplet autoconversion AUT
-    timautc: dtype_float = 1e-3
-    criautc: dtype_float = field(init=False)
+    timautc: "float" = 1e-3
+    criautc: "float" = field(init=False)
 
     # Constants for cloud droplets accretion on raindrops : ACC
-    fcaccr: dtype_float = field(init=False)
-    excaccr: dtype_float = field(init=False)
+    fcaccr: "float" = field(init=False)
+    excaccr: "float" = field(init=False)
 
     # Constants for the riming of the aggregates : RIM
-    dcslim: dtype_float = 0.007
-    colcs: dtype_float = 1.0
-    excrimss: dtype_float = field(init=False)
-    crimss: dtype_float = field(init=False)
-    excrimsg: dtype_float = field(init=False)
-    crimsg: dtype_float = field(init=False)
+    dcslim: "float" = 0.007
+    colcs: "float" = 1.0
+    excrimss: "float" = field(init=False)
+    crimss: "float" = field(init=False)
+    excrimsg: "float" = field(init=False)
+    crimsg: "float" = field(init=False)
 
-    excrimsg: dtype_float = field(init=False)
-    crimsg: dtype_float = field(init=False)
-    exsrimcg: dtype_float = field(init=False)
-    crimcg: dtype_float = field(init=False)
-    exsrimcg2: dtype_float = field(init=False)
-    rimcg2: dtype_float = field(init=False)
-    srimcg3: dtype_float = field(init=False)
+    excrimsg: "float" = field(init=False)
+    crimsg: "float" = field(init=False)
+    exsrimcg: "float" = field(init=False)
+    crimcg: "float" = field(init=False)
+    exsrimcg2: "float" = field(init=False)
+    rimcg2: "float" = field(init=False)
+    srimcg3: "float" = field(init=False)
 
-    gaminc_bound_min: dtype_float = field(init=False)
-    gaminc_bound_max: dtype_float = field(init=False)
-    rimintp1: dtype_float = field(init=False)
-    rimintp2: dtype_float = field(init=False)
+    gaminc_bound_min: "float" = field(init=False)
+    gaminc_bound_max: "float" = field(init=False)
+    rimintp1: "float" = field(init=False)
+    rimintp2: "float" = field(init=False)
 
-    ngaminc: dtype_int = field(init=False)  # Number of tab. Lbda_s
+    ngaminc: "int" = field(init=False)  # Number of tab. Lbda_s
 
     def __post_init__(self, rid: RainIceDescr, cst: Constants, parami: ParamIce):
         # 4. CONSTANTS FOR THE SEDIMENTATION
@@ -359,5 +357,5 @@ class CloudPar:
 
     """
 
-    nsplitr: dtype_int
-    nsplitg: dtype_int
+    nsplitr: "int"
+    nsplitg: "int"
