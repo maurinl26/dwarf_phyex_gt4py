@@ -1,0 +1,3 @@
+[submodule "PHYEX"]
+	path = PHYEX
+	url = git@github.com:UMR-CNRM/PHYEX.git
