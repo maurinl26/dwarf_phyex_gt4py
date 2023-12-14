@@ -4,8 +4,11 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
+from gt4py.storage import ones
+
 from ifs_physics_common.framework.grid import I, J, K
 from ifs_physics_common.framework.storage import allocate_data_array
+from phyex_gt4py.initialisation.utils import initialize_field
 
 if TYPE_CHECKING:
     from typing import Literal, Tuple
@@ -54,9 +57,16 @@ def allocate_state(
     }
 
 
+def initialize_state_with_constant(state: DataArrayDict, C: float) -> None:
+
+    for name in state.keys():
+        buffer = C * ones(state[name].shape)
+        initialize_field(state[name], buffer)
+
+
 def get_state(
     computational_grid: ComputationalGrid, *, gt4py_config: GT4PyConfig
 ) -> DataArrayDict:
     state = allocate_state(computational_grid, gt4py_config=gt4py_config)
-    # initialize_state(state, hdf5_reader)
+    initialize_state_with_constant(state, 0.5)
     return state

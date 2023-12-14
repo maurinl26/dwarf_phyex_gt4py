@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from __future__ import annotations
 from datetime import timedelta
 from functools import cached_property
@@ -120,19 +119,7 @@ class AroAdjust(ImplicitTendencyComponent):
                 "out_" + name.split("_", maxsplit=1)[1]: out_diagnostics[name]
                 for name in self.diagnostic_properties
             }
-            temporaries = {
-                "tmp_aph_s": aph_s,
-                "tmp_cldtopdist": cldtopdist,
-                "tmp_covpmax": covpmax,
-                "tmp_covptot": covptot,
-                "tmp_klevel": klevel,
-                "tmp_paphd": paphd,
-                "tmp_rainliq": rainliq,
-                "tmp_trpaus": trpaus,
-            }
-
-            # TODO : assign is for compatibility between cupy arrays and numpy arrays
-            assign(klevel, np.arange(self.nlev + 1))
+            temporaries = {}
 
             self.ice_adjust(
                 **inputs,
@@ -141,7 +128,7 @@ class AroAdjust(ImplicitTendencyComponent):
                 **temporaries,
                 dt=timestep.total_seconds(),
                 origin=(0, 0, 0),
-                domain=self.computational_grid.grids[I, J, K - 1 / 2].shape,
+                domain=self.computational_grid.grids[I, J, K].shape,
                 validate_args=self.gt4py_config.validate_args,
                 exec_info=self.gt4py_config.exec_info,
             )

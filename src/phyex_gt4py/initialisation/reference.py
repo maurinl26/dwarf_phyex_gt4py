@@ -4,14 +4,12 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
-from cloudsc4py.initialization.utils import initialize_field
 from ifs_physics_common.framework.grid import I, J, K
 from ifs_physics_common.framework.storage import allocate_data_array
 
 if TYPE_CHECKING:
     from typing import Literal, Tuple
 
-    from cloudsc4py.utils.iox import HDF5Reader
     from ifs_physics_common.framework.config import GT4PyConfig
     from ifs_physics_common.framework.grid import ComputationalGrid, DimSymbol
     from ifs_physics_common.utils.typingx import DataArray, DataArrayDict
@@ -73,7 +71,6 @@ def allocate_diagnostics(
 
 def get_reference_tendencies(
     computational_grid: ComputationalGrid,
-    hdf5_reader: HDF5Reader,
     *,
     gt4py_config: GT4PyConfig,
 ) -> DataArrayDict:
@@ -84,7 +81,6 @@ def get_reference_tendencies(
 
 def get_reference_diagnostics(
     computational_grid: ComputationalGrid,
-    hdf5_reader: HDF5Reader,
     *,
     gt4py_config: GT4PyConfig,
 ) -> DataArrayDict:
