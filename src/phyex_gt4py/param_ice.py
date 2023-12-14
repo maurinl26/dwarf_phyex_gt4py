@@ -1,9 +1,15 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
-from phyex_gt4py.config  import dtype_float, dtype_int
+from typing import Literal
+from phyex_gt4py.config import dtype_float, dtype_int
 import numpy as np
+
 
 @dataclass
 class ParamIce:
+
+    hprogram: Literal["AROME", "MESO-NH", "LMDZ"]
+
     lwarm: bool = field(default=True)  # Formation of rain by warm processes
     lsedic: bool = field(default=True)  # Enable the droplets sedimentation
     ldeposc: bool = field(default=False)  # Enable cloud droplets deposition
@@ -27,13 +33,17 @@ class ParamIce:
     nmaxiter_micro: dtype_int = field(
         default=5
     )  # max number of iterations for mixing ratio
-    mrstep: dtype_float = field(default=5.0e-5)  # max mixing ratio for mixing ratio splitting
+    mrstep: dtype_float = field(
+        default=5.0e-5
+    )  # max mixing ratio for mixing ratio splitting
     lconvhg: bool = field(default=False)  # Allow the conversion from hail to graupel
     lcrflimit: bool = field(
         default=True
     )  # Limit rain contact freezing to possible heat exchange
 
-    step_ts: dtype_float = field(default=0)  # Approximative time step for time-splitting
+    step_ts: dtype_float = field(
+        default=0
+    )  # Approximative time step for time-splitting
 
     subg_rc_rr_accr: str = field(default="NONE")  # subgrid rc-rr accretion
     subg_rr_evap: str = field(default="NONE")  # subgrid rr evaporation
@@ -73,11 +83,12 @@ class ParamIce:
     rdepsred_nam: dtype_float = field(default=1)
     rdepgred_nam: dtype_float = field(default=1)
     lcond2: bool = field(default=False)
-    frmin_nam: np.ndarray[40] = field(init=False)
+    frmin_nam: np.ndarray = field(init=False)
 
-    def __post_init__(self, hprogram: str):
+    def __post_init__(self):
         self.t0criauti_nam = (np.log10(self.criauti_nam) - self.brcriauti_nam) / 0.06
 
+        self.frmin_nam = np.empty(41)
         self.frmin_nam[1:6] = 0
         self.frmin_nam[7:9] = 1.0
         self.frmin_nam[10] = 10.0
@@ -95,7 +106,7 @@ class ParamIce:
         self.frmin_nam[39] = 0.25
         self.frmin_nam[40] = 0.15
 
-        if hprogram == "AROME":
+        if self.hprogram == "AROME":
             self.lconvhg = True
             self.ladj_before = True
             self.ladj_after = False
@@ -104,7 +115,7 @@ class ParamIce:
             self.mrstep = 0
             self.subg_aucv_rc = "PDF"
 
-        elif hprogram == "LMDZ":
+        elif self.hprogram == "LMDZ":
             self.subg_aucv_rc = "PDF"
             self.sedim = "STAT"
             self.nmaxiter_micro = 1

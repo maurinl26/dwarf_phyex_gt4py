@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
 from math import gamma
 from typing import List, Tuple
@@ -11,6 +12,10 @@ from phyex_gt4py.param_ice import ParamIce
 
 @dataclass
 class RainIceDescr:
+
+    cst: Constants
+    parami: ParamIce
+
     cexvt: dtype_float = 0.4  # Air density fall speed correction
 
     rtmin: np.ndarray = field(init=False)  # Min values allowed for mixing ratios
@@ -141,30 +146,30 @@ class RainIceDescr:
         5e8  # Diagnostic concentration of droplets over urban area
     )
 
-    def __post_init__(self, cst: Constants, parami: ParamIce):
+    def __post_init__(self):
         # 2.2    Ice crystal characteristics
-        if parami.pristine_ice == "PLAT":
+        if self.parami.pristine_ice == "PLAT":
             self.ai = 0.82
             self.bi = 2.5
             self.c_i = 800
             self.di = 1.0
-            self.c1i = 1 / cst.pi
+            self.c1i = 1 / self.cst.pi
 
-        elif parami.pristine_ice == "COLU":
+        elif self.parami.pristine_ice == "COLU":
             self.ai = 2.14e-3
             self.bi = 1.7
             self.c_i = 2.1e5
             self.di = 1.585
             self.c1i = 0.8
 
-        elif parami.pristine_ice == "BURO":
+        elif self.parami.pristine_ice == "BURO":
             self.ai = 44.0
             self.bi = 3.0
             self.c_i = 4.3e5
             self.di = 1.663
             self.c1i = 0.5
 
-        if parami.lsnow:
+        if self.parami.lsnow_t:
             self.cs = 5.1
             self.ds = 0.27
             self.fvelos = 25.14
@@ -172,7 +177,7 @@ class RainIceDescr:
             self.alphas = 0.214
             self.nus = 43.7
 
-        self.c1s = 1 / cst.pi
+        self.c1s = 1 / self.cst.pi
 
         self.lbexc = 1 / self.bc
         self.lbexr = 1 / (-1 - self.br)

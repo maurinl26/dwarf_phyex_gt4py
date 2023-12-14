@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import Literal, Tuple
 
 from phyex_gt4py.budget import TBudgetConf
 from phyex_gt4py.config import dtype_float, dtype_int
@@ -38,13 +39,15 @@ class Phyex:
         o2d (bool): 2D version of turbulence
     """
 
-    cst: Constants
-    param_icen: ParamIce
-    rain_ice_descrn: RainIceDescr
-    rain_ice_paramn: RainIceParam
-    nebn: Neb
+    program: Literal["AROME", "MESO-NH"]
+    timestep: dtype_float = field(default=1)
 
-    tstep: dtype_float
+    cst: Constants = field(init=False)
+    param_icen: ParamIce = field(init=False)
+    rain_ice_descrn: RainIceDescr = field(init=False)
+    rain_ice_paramn: RainIceParam = field(init=False)
+    nebn: Neb = field(init=False)
+
     itermax: dtype_int = field(default=1)
 
     # Miscellaneous terms
@@ -68,9 +71,9 @@ class Phyex:
     # flat: bool
     # tbuconf: TBudgetConf
 
-    def __post_init__(self, program: str):
+    def __post_init__(self):
         self.cst = Constants()
-        self.param_icen = ParamIce(hprogram=program)
-        self.nebn = Neb(hprogram=program)
+        self.param_icen = ParamIce(hprogram=self.program)
+        self.nebn = Neb(hprogram=self.program)
         self.rain_ice_descrn = RainIceDescr(self.cst, self.param_icen)
         self.rain_ice_paramn = RainIceParam(self.cst, self.param_icen)

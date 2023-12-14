@@ -1,13 +1,16 @@
+# -*- coding: utf-8 -*-
 from dataclasses import dataclass, field
 from enum import Enum
-from phyex_gt4py.config  import dtype_float, dtype_int
+from typing import Literal
+from phyex_gt4py.config import dtype_float, dtype_int
+
 
 class FracIceAdjust(Enum):
     T = 0
     O = 1
     N = 2
     S = 3
-   
+
 
 @dataclass
 class Neb:
@@ -28,28 +31,30 @@ class Neb:
 
     """
 
-    tminmix: dtype_float = field(default=273.16) # minimum temperature for mixed phase
-    tmaxmix: dtype_float = field(default=253.16) # maximum temperature for mixed phase
-    hgt_qs: dtype_float = field(default=False) # switch for height dependant VQSIGSAT
-    frac_ice_adjust: FracIceAdjust = field(default="S") # ice fraction for adjustments
-    frac_ice_shallow: str = field(default="S") # ice fraction for shallow_mf
-    vsigqsat: dtype_float = field(default=0.02) # coeff applied to qsat variance contribution
+    hprogram: Literal["AROME", "MESO-NH", "LMDZ"]
+
+    tminmix: dtype_float = field(default=273.16)  # minimum temperature for mixed phase
+    tmaxmix: dtype_float = field(default=253.16)  # maximum temperature for mixed phase
+    hgt_qs: dtype_float = field(default=False)  # switch for height dependant VQSIGSAT
+    frac_ice_adjust: FracIceAdjust = field(default="S")  # ice fraction for adjustments
+    frac_ice_shallow: str = field(default="S")  # ice fraction for shallow_mf
+    vsigqsat: dtype_float = field(
+        default=0.02
+    )  # coeff applied to qsat variance contribution
     condens: str = field(default="CB02")  # subgrid condensation PDF
     lambda3: str = field(default="CB")  # lambda3 choice for subgrid cloud scheme
-    statnw: bool = field(default=False) # updated full statistical cloud scheme
-    sigmas: bool = field(default=True) # switch for using sigma_s from turbulence scheme
+    statnw: bool = field(default=False)  # updated full statistical cloud scheme
+    sigmas: bool = field(
+        default=True
+    )  # switch for using sigma_s from turbulence scheme
     subg_cond: bool = field(default=False)  # switch for subgrid condensation
 
-    def __post_init__(self, hprogram: str):
-        if hprogram == "AROME":
+    def __post_init__(self):
+        if self.hprogram == "AROME":
             self.frac_ice_adjust = "S"
             self.frac_ice_shallow = "T"
             self.vsigqsat = 0
             self.sigmas = False
 
-        elif hprogram == "LMDZ":
+        elif self.hprogram == "LMDZ":
             self.subg_cond = True
-
-
-
-    
