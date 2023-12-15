@@ -5,8 +5,10 @@ from typing import Literal, Tuple
 from phyex_gt4py.phyex_common.constants import Constants
 from phyex_gt4py.phyex_common.nebn import Neb
 from phyex_gt4py.phyex_common.rain_ice_param import ParamIce, RainIceDescr, RainIceParam
+from ifs_physics_common.utils.f2py import ported_class
 
 
+@ported_class(from_file="PHYEX/src/common/aux/modd_phyex.F90")
 @dataclass
 class Phyex:
     """Data class for physics parametrizations
@@ -38,7 +40,7 @@ class Phyex:
     """
 
     program: Literal["AROME", "MESO-NH"]
-    timestep: "float" = field(default=1)
+    timestep: float = field(default=1)
 
     cst: Constants = field(init=False)
     param_icen: ParamIce = field(init=False)
@@ -46,19 +48,19 @@ class Phyex:
     rain_ice_paramn: RainIceParam = field(init=False)
     nebn: Neb = field(init=False)
 
-    itermax: "int" = field(default=1)
+    itermax: int = field(default=1)
 
     # Miscellaneous terms
     lmfconv: bool = field(default=True)
     compute_src: bool = field(default=True)
-    khalo: "int" = field(default=1)
+    khalo: int = field(default=1)
     program: str = field(default="AROME")
     nomixlg: bool = field(default=False)
     ocean: bool = field(default=False)
     deepoc: bool = field(default=False)
     couples: bool = field(default=False)
     blowsnow: bool = field(default=False)
-    rsnow: "float" = field(default=1.0)
+    rsnow: float = field(default=1.0)
     lbcx: Tuple[str] = field(default=("CYCL", "CYCL"))
     lbcy: Tuple[str] = field(default=("CYCL", "CYCL"))
     ibm: bool = field(default=False)

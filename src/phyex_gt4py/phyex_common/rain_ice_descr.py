@@ -6,139 +6,163 @@ from typing import List, Tuple
 import numpy as np
 from phyex_gt4py.phyex_common.constants import Constants
 from phyex_gt4py.phyex_common.param_ice import ParamIce
+from ifs_physics_common.utils.f2py import ported_class
 
 
+@ported_class(from_file="PHYEX/src/common/aux/modd_rain_ice_descrn.F90")
 @dataclass
 class RainIceDescr:
+    """Stores and compute distributions parameters for sedimentation
+
+    m(D)    = XAx * D**XBx      : Mass-MaxDim relationship
+    v(D)    = XCx * D**XDx      : Fallspeed-MaxDim relationship
+    N(Lbda) = XCCx * Lbda**XCXx : NumberConc-Slopeparam relationship
+    f0x, f1x, f2x               : Ventilation factors
+    c1x                         : Shape parameter for deposition
+
+    and
+
+    alphax, nux                        : Generalized GAMMA law
+    Lbda = XLBx * (r_x*rho_dref)**XLBEXx : Slope parameter of the
+                                                distribution law
+
+
+    """
 
     cst: Constants
     parami: ParamIce
 
-    cexvt: "float" = 0.4  # Air density fall speed correction
+    cexvt: float = 0.4  # Air density fall speed correction
 
-    rtmin: np.ndarray = field(init=False)  # Min values allowed for mixing ratios
+    rtmin: np.ndarray = field(
+        default=np.zeros(41)
+    )  # Min values allowed for mixing ratios
 
     # Cloud droplet charact.
-    ac: "float" = field(init=False)
-    bc: "float" = 3.0
-    cc: "float" = field(init=False)
-    dc: "float" = 2.0
+    ac: float = field(default=524)
+    bc: float = field(default=3.0)
+    cc: float = field(default=842)
+    dc: float = field(default=2)
 
     # Rain drop charact
-    ar: "float" = field(init=False)
-    br: "float" = field(default=3.0)
-    cr: "float" = field(default=842)
-    dr: "float" = field(default=0.8)
-    ccr: "float" = field(default=8e-6)
-    f0r: "float" = field(default=1.0)
-    f1r: "float" = field(default=0.26)
-    c1r: "float" = field(default=0.5)
+    ar: float = field(default=524)
+    br: float = field(default=3.0)
+    cr: float = field(default=842)
+    dr: float = field(default=0.8)
+    ccr: float = field(default=8e-6)
+    f0r: float = field(default=1.0)
+    f1r: float = field(default=0.26)
+    c1r: float = field(default=0.5)
+
+    # ar, br -> mass - diameter power law
+    # cr, dr -> terminal speed velocity - diameter powerlaw
+    # f0, f1, f2 -> ventilation coefficients
+    # C1 ?
 
     # Cloud ice charact.
-    ai: "float" = field(init=False)
-    bi: "float" = field(init=False)
-    c_i: "float" = field(init=False)
-    di: "float" = field(init=False)
-    f0i: "float" = field(default=1.00)
-    f2i: "float" = field(default=0.14)
-    c1i: "float" = field(init=False)
+    ai: float = field(init=False)
+    bi: float = field(init=False)
+    c_i: float = field(init=False)
+    di: float = field(init=False)
+    f0i: float = field(default=1.00)
+    f2i: float = field(default=0.14)
+    c1i: float = field(init=False)
 
     # Snow/agg charact.
-    a_s: "float" = field(default=0.02)
-    bs: "float" = field(default=1.9)
-    cs: "float" = field(default=5.1)
-    ds: "float" = field(default=0.27)
-    ccs: "float" = field(default=5.0)  # not lsnow
-    cxs: "float" = field(default=1.0)
-    f0s: "float" = field(default=0.86)
-    f1s: "float" = field(default=0.28)
-    c1s: "float" = field(init=False)
+    a_s: float = field(default=0.02)
+    bs: float = field(default=1.9)
+    cs: float = field(default=5.1)
+    ds: float = field(default=0.27)
+    ccs: float = field(default=5.0)  # not lsnow
+    cxs: float = field(default=1.0)
+    f0s: float = field(default=0.86)
+    f1s: float = field(default=0.28)
+    c1s: float = field(init=False)
 
     # Graupel charact.
-    ag: "float" = 19.6
-    bg: "float" = 2.8
-    cg: "float" = 124
-    dg: "float" = 0.66
-    ccg: "float" = 5e5
-    cxg: "float" = -0.5
-    f0g: "float" = 0.86
-    f1g: "float" = 0.28
-    c1g: "float" = 1 / 2
+    ag: float = field(default=19.6)
+    bg: float = field(default=2.8)
+    cg: float = field(default=124)
+    dg: float = field(default=0.66)
+    ccg: float = field(default=5e5)
+    cxg: float = field(default=-0.5)
+    f0g: float = field(default=0.86)
+    f1g: float = field(default=0.28)
+    c1g: float = field(default=1 / 2)
 
     # Hail charact.
-    ah: "float" = 470
-    bh: "float" = 3.0
-    ch: "float" = 207
-    dh: "float" = 0.64
-    cch: "float" = 4e4
-    cxh: "float" = -1.0
-    f0h: "float" = 0.86
-    f1h: "float" = 0.28
-    c1h: "float" = 1 / 2
+    ah: float = field(default=470)
+    bh: float = field(default=3.0)
+    ch: float = field(default=207)
+    dh: float = field(default=0.64)
+    cch: float = field(default=4e4)
+    cxh: float = field(default=-1.0)
+    f0h: float = field(default=0.86)
+    f1h: float = field(default=0.28)
+    c1h: float = field(default=1 / 2)
 
     # Cloud droplet distribution parameters
 
     # Over land
-    alphac: "float" = (
+    alphac: float = (
         1.0  # Gamma law of the Cloud droplet (here volume-like distribution)
     )
-    nuc: "float" = 3.0  # Gamma law with little dispersion
+    nuc: float = 3.0  # Gamma law with little dispersion
 
     # Over sea
-    alphac2: "float" = 1.0
-    nuc2: "float" = 1.0
+    alphac2: float = 1.0
+    nuc2: float = 1.0
 
-    lbexc: "float" = field(init=False)
-    lbc: Tuple["float"] = field(init=False)
+    lbexc: float = field(init=False)
+    lbc: Tuple[float] = field(init=False)
 
     # Rain drop distribution parameters
-    alphar: "float" = (
+    alphar: float = (
         3.0  # Gamma law of the Cloud droplet (here volume-like distribution)
     )
-    nur: "float" = 1.0  # Gamma law with little dispersion
-    lbexr: "float" = field(init=False)
-    lbr: "float" = field(init=False)
+    nur: float = 1.0  # Gamma law with little dispersion
+    lbexr: float = field(init=False)
+    lbr: float = field(init=False)
 
     # Cloud ice distribution parameters
-    alphai: "float" = 1.0  # Exponential law
-    nui: "float" = 1.0  # Exponential law
-    lbexi: "float" = field(init=False)
-    lbi: "float" = field(init=False)
+    alphai: float = 1.0  # Exponential law
+    nui: float = 1.0  # Exponential law
+    lbexi: float = field(init=False)
+    lbi: float = field(init=False)
 
     # Snow/agg. distribution parameters
-    alphas: "float" = field(default=1.0)
-    nus: "float" = field(default=1.0)
-    lbexs: "float" = field(init=False)
-    lbs: "float" = field(init=False)
-    ns: "float" = field(init=False)
+    alphas: float = field(default=1.0)
+    nus: float = field(default=1.0)
+    lbexs: float = field(init=False)
+    lbs: float = field(init=False)
+    ns: float = field(init=False)
 
     # Graupel distribution parameters
-    alphag: "float" = 1.0
-    nug: "float" = 1.0
-    lbexg: "float" = field(init=False)
-    lbg: "float" = field(init=False)
+    alphag: float = 1.0
+    nug: float = 1.0
+    lbexg: float = field(init=False)
+    lbg: float = field(init=False)
 
     # Hail distribution parameters
-    alphah: "float" = 1.0
-    nuh: "float" = 8.0
-    lbexh: "float" = field(init=False)
-    lbh: "float" = field(init=False)
+    alphah: float = 1.0
+    nuh: float = 8.0
+    lbexh: float = field(init=False)
+    lbh: float = field(init=False)
 
-    fvelos: "float" = field(default=0.097)  # factor for snow fall speed after Thompson
-    trans_mp_gammas: "float" = field(
-        init=False
-    )  # coefficient to convert lambda for gamma functions
-    lbdar_max: "float" = (
+    fvelos: float = field(default=0.097)  # factor for snow fall speed after Thompson
+    # trans_mp_gammas: float = field(
+    #     init=False
+    # )  # coefficient to convert lambda for gamma functions
+    lbdar_max: float = (
         1e5  # Max values allowed for the shape parameters (rain,snow,graupeln)
     )
-    lbdas_max: "float" = 1e5
-    lbdag_max: "float" = 1e5
-    lbdas_min: "float" = field(init=False)
+    lbdas_max: float = 1e5
+    lbdag_max: float = 1e5
+    # lbdas_min: float = field(init=False)
 
-    rtmin: List["float"]  # min value allowed for mixing ratios
-    conc_sea: "float" = 1e8  # Diagnostic concentration of droplets over sea
-    conc_land: "float" = 3e8  # Diagnostic concentration of droplets over land
-    conc_urban: "float" = 5e8  # Diagnostic concentration of droplets over urban area
+    conc_sea: float = 1e8  # Diagnostic concentration of droplets over sea
+    conc_land: float = 3e8  # Diagnostic concentration of droplets over land
+    conc_urban: float = 5e8  # Diagnostic concentration of droplets over urban area
 
     def __post_init__(self):
         # 2.2    Ice crystal characteristics
@@ -185,13 +209,12 @@ class RainIceDescr:
 
         gamc = momg(self.alphac, self.nuc, 3)
         gamc2 = momg(self.alphac2, self.nuc2, 3)
-        self.lbc[0] = self.ar * gamc
-        self.lbc[1] = self.ar * gamc2
+        self.lbc = (self.ar * gamc, self.ar * gamc2)
 
         self.lbr = (self.ar * self.ccr * momg(self.alphar, self.nur, self.br)) ** (
             -self.lbexr
         )
-        self.lbi = (self.ai * self.cci * momg(self.alphai, self.nui, self.bi)) ** (
+        self.lbi = (self.ai * self.c_i * momg(self.alphai, self.nui, self.bi)) ** (
             -self.lbexi
         )
         self.lbs = (self.a_s * self.ccs * momg(self.alphas, self.nus, self.bs)) ** (
@@ -203,6 +226,8 @@ class RainIceDescr:
         self.lbh = (self.ah * self.cch * momg(self.alphah, self.nuh, self.bh)) ** (
             -self.lbexh
         )
+
+        self.ns = 1.0 / (self.a_s * momg(self.alphas, self.nus, self.bs))
 
 
 @dataclass
@@ -217,5 +242,5 @@ class CloudPar:
 
     """
 
-    nsplitr: "int"
-    nsplitg: "int"
+    nsplitr: int
+    nsplitg: int
