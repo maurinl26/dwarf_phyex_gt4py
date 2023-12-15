@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import gt4py.cartesian.gtscript as gtscript
-from phyex_gt4py.config import dtype_float
-from gt4py.cartesian.gtscript import sqrt, exp
+
+from gt4py.cartesian.gtscript import Field, exp, function, sqrt
 
 from phyex_gt4py.functions.sign import sign
 
 
-@gtscript.function
+@function
 def erf(
-    pi: dtype_float,
-    z: gtscript.Field[dtype_float],
+    pi: float,
+    z: Field["float"],
 ):
     gc = -z / sqrt(2)
     gv = 1 - sign(1, gc) * sqrt(1 - exp(-4 * gc**2 / pi))

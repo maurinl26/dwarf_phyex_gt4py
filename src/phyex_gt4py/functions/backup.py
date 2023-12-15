@@ -1,38 +1,38 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
-import gt4py.cartesian.gtscript as gtscript
-from phyex_gt4py.config  import dtype_float
-from gt4py.cartesian.gtscript import Field
 
-from phyex_gt4py.constants import Constants
 from typing import Tuple
 
-@gtscript.function()
+from gt4py.cartesian.gtscript import Field, function
+
+
+@function
 def backup(
-    rv_tmp: gtscript.Field,
-    ri_tmp: gtscript.Field,
-    rc_tmp: gtscript.Field,
-    rv_out: gtscript.Field,
-    ri_out: gtscript.Field,
-    rc_out: gtscript.Field
-) -> Tuple[gtscript.Field]:
+    rv_tmp: Field["float"],
+    ri_tmp: Field["float"],
+    rc_tmp: Field["float"],
+    rv_out: Field["float"],
+    ri_out: Field["float"],
+    rc_out: Field["float"],
+) -> Tuple[Field["float"]]:
     """
-    Dump out fields into temporary fields to 
+    Dump out fields into temporary fields to
     perform loop iterations
 
     Args:
-        rv_tmp (gtscript.Field): vapour mixing ratio (temp field)
-        ri_tmp (gtscript.Field): ice mixing ratio (temp field)
-        rc_tmp (gtscript.Field): cloud mixing ratio (temp field)
-        rv_out (gtscript.Field): vapour mixing ratio (out field)
-        ri_out (gtscript.Field): ice mixing ratio (out field)
-        rc_out (gtscript.Field): cloud mixing ratio (out field)
+        rv_tmp (Field["float"]): vapour mixing ratio (temp field)
+        ri_tmp (Field["float"]): ice mixing ratio (temp field)
+        rc_tmp (Field["float"]): cloud mixing ratio (temp field)
+        rv_out (Field["float"]): vapour mixing ratio (out field)
+        ri_out (Field["float"]): ice mixing ratio (out field)
+        rc_out (Field["float"]): cloud mixing ratio (out field)
 
     Returns:
-        Tuple[gtscript.Field]: temporary fields
+        Tuple[Field["float"]]: temporary fields
     """
-    
+
     rv_tmp = rv_out[0, 0, 0]
     ri_tmp = ri_out[0, 0, 0]
     rc_tmp = rc_out[0, 0, 0]
-    
+
     return rv_tmp, ri_tmp, rc_tmp

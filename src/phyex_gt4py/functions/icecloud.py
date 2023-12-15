@@ -1,35 +1,34 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import gt4py.cartesian.gtscript as gtscript
-from phyex_gt4py.config import dtype_float
-from gt4py.cartesian.gtscript import IJ, Field, sqrt
+
+from gt4py.cartesian.gtscript import IJ, Field, function, sqrt
 
 from phyex_gt4py.functions.tiwmx import esati, esatw
 
 
-@gtscript.function()
+@function
 def icecloud(
-    p: Field[IJ, dtype_float],
-    z: Field[IJ, dtype_float],
-    dz: Field[IJ, dtype_float],
-    t: Field[IJ, dtype_float],
-    r: Field[IJ, dtype_float],
-    tstep: dtype_float,
-    pblh: dtype_float,
-    wcld: Field[IJ, dtype_float],
-    w2d: dtype_float,
+    p: Field[IJ, float],
+    z: Field[IJ, float],
+    dz: Field[IJ, float],
+    t: Field[IJ, float],
+    r: Field[IJ, float],
+    tstep: float,
+    pblh: float,
+    wcld: Field[IJ, float],
+    w2d: float,
     # Outputs
-    sifrc: Field[IJ, dtype_float],
-    ssio: Field[IJ, dtype_float],
-    ssiu: Field[IJ, dtype_float],
-    w2d_out: Field[IJ, dtype_float],
-    rsi: Field[IJ, dtype_float],
+    sifrc: Field[IJ, float],
+    ssio: Field[IJ, float],
+    ssiu: Field[IJ, float],
+    w2d_out: Field[IJ, float],
+    rsi: Field[IJ, float],
     # Constants
-    epsilo: dtype_float,
-    gravity0: dtype_float,
-    Rd: dtype_float,
-    lvtt: dtype_float,
-    cpd: dtype_float,
+    epsilo: float,
+    gravity0: float,
+    Rd: float,
+    lvtt: float,
+    cpd: float,
 ):
     """
     Calculate subgridscale fraction of supersaturation with respect to ice.
@@ -39,21 +38,21 @@ def icecloud(
 
     Args:
         cst (Constants): _description_
-        p (Field[IJ, dtype_float]): pressure at model level (Pa)
-        z (Field[IJ, dtype_float]): model level height (m)
-        dz (Field[IJ, dtype_float]): model level thickness (m)
-        t (Field[IJ, dtype_float]): temperature (K)
-        r (Field[IJ, dtype_float]): model level humidity mixing ratio (kg/kg)
-        tstep (dtype_float): timestep
-        pblh (dtype_float): planetary layer height (m) (negative values means unknown)
-        wcld (Field[IJ, dtype_float]): water and mixed phase cloud cover (negative value means unknown)
-        w2d_in (dtype_float): quota between ice crystal concentration between dry and wet
+        p (Field[IJ, float]): pressure at model level (Pa)
+        z (Field[IJ, float]): model level height (m)
+        dz (Field[IJ, float]): model level thickness (m)
+        t (Field[IJ, float]): temperature (K)
+        r (Field[IJ, float]): model level humidity mixing ratio (kg/kg)
+        tstep (float): timestep
+        pblh (float): planetary layer height (m) (negative values means unknown)
+        wcld (Field[IJ, float]): water and mixed phase cloud cover (negative value means unknown)
+        w2d_in (float): quota between ice crystal concentration between dry and wet
 
-        sifrc (Field[IJ, dtype_float]): subgridscale fraction with supersaturation respect to ice
-        ssio (Field[IJ, dtype_float]): super-saturation with respect to ice in the supersaturated fraction
-        ssiu (Field[IJ, dtype_float]): sub-saturation with respect to ice in the sub saturated fraction
-        w2d_out (Field[IJ, dtype_float]): factor used ti get consistency between the mean value of the gridbox and parts of the grid box
-        rsi (Field[IJ, dtype_float]): saturation mixing ratio over ice
+        sifrc (Field[IJ, float]): subgridscale fraction with supersaturation respect to ice
+        ssio (Field[IJ, float]): super-saturation with respect to ice in the supersaturated fraction
+        ssiu (Field[IJ, float]): sub-saturation with respect to ice in the sub saturated fraction
+        w2d_out (Field[IJ, float]): factor used ti get consistency between the mean value of the gridbox and parts of the grid box
+        rsi (Field[IJ, float]): saturation mixing ratio over ice
 
     Returns:
         Tuple[Field]: sifrc, ssio, ssiu, w2d_out, rsi

@@ -1,28 +1,29 @@
-from phyex_gt4py.config  import dtype_float
-from gt4py.cartesian.gtscript import Field, function
+# -*- coding: utf-8 -*-
 from typing import Tuple
+
+from gt4py.cartesian.gtscript import Field, function
 
 
 @function
 def subgrid_mf(
-    criaut: Field[dtype_float],
-    subg_mf_pdf: Field[dtype_float],
-    hl_hr: Field[dtype_float],
-    hl_hc: Field[dtype_float],
-    cf_mf: Field[dtype_float],
-    w: Field[dtype_float],
-    tstep: dtype_float,
-) -> Tuple[Field[dtype_float]]:
+    criaut: Field["float"],
+    subg_mf_pdf: Field["float"],
+    hl_hr: Field["float"],
+    hl_hc: Field["float"],
+    cf_mf: Field["float"],
+    w: Field["float"],
+    tstep: float,
+) -> Tuple[Field["float"]]:
     """Compute subgrid mass fluxes
 
     Args:
-        criaut (Field[dtype_float]): _description_
-        subg_mf_pdf (Field[dtype_float]): _description_
-        hl_hr (Field[dtype_float]): _description_
-        hl_hc (Field[dtype_float]): _description_
-        cf_mf (Field[dtype_float]): _description_
-        w (Field[dtype_float]): _description_
-        tstep (dtype_float): time step
+        criaut (Field[float]): _description_
+        subg_mf_pdf (Field[float]): _description_
+        hl_hr (Field[float]): _description_
+        hl_hc (Field[float]): _description_
+        cf_mf (Field[float]): _description_
+        w (Field[float]): _description_
+        tstep (float): time step
 
     Returns:
         _type_: _description_

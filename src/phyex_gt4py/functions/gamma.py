@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from phyex_gt4py.config import dtype_float
 
 zcoef = tuple()
 zcoef[0] = 76.18009172947146
@@ -13,7 +12,7 @@ zstp = 2.5066282746310005
 ZPI = 3.141592654
 
 
-def gamma(x: dtype_float) -> dtype_float:
+def gamma(x: float) -> float:
     if x < 0:
         zx = 1 - x
     else:

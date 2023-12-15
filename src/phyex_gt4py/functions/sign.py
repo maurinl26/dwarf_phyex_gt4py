@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-from gt4py.cartesian import gtscript
-from phyex_gt4py.config import dtype_float
+from gt4py.cartesian.gtscript import function
 
 
-@gtscript.function
+@function
 def sign(
-    x: dtype_float,
+    x: float,
 ):
     if x > 0:
         sign = 1
