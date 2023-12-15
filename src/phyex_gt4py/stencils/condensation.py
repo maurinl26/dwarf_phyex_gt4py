@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Optional
 
-from gt4py.cartesian.gtscript import IJ, K, Field, stencil
+from gt4py.cartesian.gtscript import IJ, Field
 from gt4py.cartesian.gtscript import sqrt, exp, log, atan, floor
 
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
@@ -53,25 +53,47 @@ def condensation(
     sigma: Field[IJ, "float"],
     q1: Field[IJ, "float"],
     # Condensation constants
-    lvtt: "float",
-    lstt: "float",
-    tt: "float",
-    cpv: "float",
-    Cl: "float",
-    Ci: "float",
-    alpw: "float",
-    betaw: "float",
-    gamw: "float",
-    alpi: "float",
-    betai: "float",
-    gami: "float",
-    Rd: "float",
-    Rv: "float",
+    lvtt,
+    lstt,
+    tt,
+    cpv,
+    Cl,
+    Ci,
+    alpw,
+    betaw,
+    gamw,
+    alpi,
+    betai,
+    gami,
+    Rd,
+    Rv,
     # Neb parameters
     frac_ice_adjust: str,
-    tmaxmix: "float",
-    tminmix: "float",
+    tmaxmix,
+    tminmix,
 ):
+
+    from __externals__ import (
+        lvtt,
+        lstt,
+        tt,
+        cpv,
+        Cl,
+        Ci,
+        alpw,
+        betaw,
+        gamw,
+        alpi,
+        betai,
+        gami,
+        Rd,
+        Rv,
+        # Neb parameters
+        frac_ice_adjust,
+        tmaxmix,
+        tminmix,
+    )
+
     src_1d = [
         0.0,
         0.0,
