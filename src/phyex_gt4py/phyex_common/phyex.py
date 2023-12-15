@@ -45,7 +45,6 @@ class Phyex:
     cst: Constants = field(init=False)
     param_icen: ParamIce = field(init=False)
     rain_ice_descrn: RainIceDescr = field(init=False)
-    rain_ice_paramn: RainIceParam = field(init=False)
     nebn: Neb = field(init=False)
 
     itermax: int = field(default=1)
@@ -76,4 +75,3 @@ class Phyex:
         self.param_icen = ParamIce(hprogram=self.program)
         self.nebn = Neb(hprogram=self.program)
         self.rain_ice_descrn = RainIceDescr(self.cst, self.param_icen)
-        self.rain_ice_paramn = RainIceParam(self.cst, self.param_icen)
