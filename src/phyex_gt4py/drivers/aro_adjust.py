@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from dataclasses import asdict
 from datetime import timedelta
 from functools import cached_property
 from itertools import repeat
@@ -12,16 +13,26 @@ from ifs_physics_common.framework.components import ImplicitTendencyComponent
 from ifs_physics_common.utils.typingx import PropertyDict, NDArrayLikeDict
 from ifs_physics_common.framework.grid import I, J, K
 from ifs_physics_common.framework.storage import managed_temporary_storage
-from ifs_physics_common.utils.numpyx import assign
+from phyex_gt4py.phyex_common.phyex import Phyex
 
 
 class AroAdjust(ImplicitTendencyComponent):
     def __init__(
-        self, computational_grid: ComputationalGrid, gt4py_config: GT4PyConfig
+        self,
+        computational_grid: ComputationalGrid,
+        gt4py_config: GT4PyConfig,
+        phyex: Phyex,
     ):
 
+        self.computational_grid = computational_grid
         self.gt4py_config = gt4py_config
-        self.ice_adjust = self.compile_stencil("ice_adjust")
+
+        externals = {}
+        externals.update(asdict(phyex.nebn))
+        externals.update(asdict(phyex.cst))
+        externals.update(asdict(phyex.param_icen))
+
+        self.ice_adjust = self.compile_stencil("ice_adjust", externals)
 
     @cached_property
     def _input_properties(self) -> PropertyDict:
@@ -56,8 +67,7 @@ class AroAdjust(ImplicitTendencyComponent):
         }
 
     @cached_property
-    def _diagnostic_property(self) -> PropertyDict:
-
+    def _diagnostic_properties(self) -> PropertyDict:
         return {
             "icldfr": {"grid": (I, J, K), "units": ""},
             "wcldfr": {"grid": (I, J, K), "units": ""},

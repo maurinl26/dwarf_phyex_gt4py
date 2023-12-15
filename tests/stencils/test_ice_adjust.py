@@ -12,6 +12,7 @@ from phyex_gt4py.drivers.aro_adjust import AroAdjust
 from phyex_gt4py.initialisation.state import allocate_data_array, allocate_state
 from phyex_gt4py.initialisation.utils import initialize_field
 from phyex_gt4py.phyex_common.phyex import Phyex
+from phyex_gt4py.drivers.config import default_python_config
 
 if TYPE_CHECKING:
     from typing import Literal, Tuple
@@ -88,14 +89,11 @@ if __name__ == "__main__":
 
     cprogram = "AROME"
     phyex_config = Phyex(cprogram)
-    gt4py_config = GT4PyConfig()
+    gt4py_config = default_python_config.gt4py_config
     grid = ComputationalGrid(nx, ny, nz)
     dt = 1
 
-    aro_adjust = AroAdjust(
-        grid,
-        gt4py_config,
-    )
+    aro_adjust = AroAdjust(grid, gt4py_config, phyex_config)
 
     # Test 1
     state = get_state_with_constant(grid, gt4py_config, 0)
