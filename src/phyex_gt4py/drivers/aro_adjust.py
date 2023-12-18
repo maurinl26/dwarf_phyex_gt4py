@@ -5,7 +5,6 @@ from datetime import timedelta
 from functools import cached_property
 from itertools import repeat
 from typing import Dict
-import numpy as np
 
 from ifs_physics_common.framework.grid import ComputationalGrid
 from ifs_physics_common.framework.config import GT4PyConfig
@@ -22,15 +21,18 @@ class AroAdjust(ImplicitTendencyComponent):
         computational_grid: ComputationalGrid,
         gt4py_config: GT4PyConfig,
         phyex: Phyex,
-    ):
-
-        self.computational_grid = computational_grid
-        self.gt4py_config = gt4py_config
+        *,
+        enable_checks: bool = True,
+    ) -> None:
+        super().__init__(
+            computational_grid, enable_checks=enable_checks, gt4py_config=gt4py_config
+        )
 
         externals = {}
         externals.update(asdict(phyex.nebn))
         externals.update(asdict(phyex.cst))
         externals.update(asdict(phyex.param_icen))
+        externals.update({})
 
         self.ice_adjust = self.compile_stencil("ice_adjust", externals)
 

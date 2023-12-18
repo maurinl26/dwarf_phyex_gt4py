@@ -8,15 +8,13 @@ from gt4py.cartesian.gtscript import Field, function
 
 @function
 def compute_frac_ice(
-    hfrac_ice: str,
+    hfrac_ice: int,
     tmaxmix: float,
     tminmix: float,
     t: Field["float"],
     frac_ice: float,
-    kerr: Optional[int],
     tt: float,
 ) -> Tuple[int, Field["float"]]:
-    kerr = 0 if kerr is not None else None
 
     # using temperature
     # FracIceAdujst.T.value
@@ -38,7 +36,4 @@ def compute_frac_ice(
     elif hfrac_ice == 3:
         frac_ice = max(0, min(1, frac_ice))
 
-    else:
-        kerr = 1 if kerr is not None else None
-
-    return kerr, frac_ice
+    return frac_ice

@@ -108,7 +108,7 @@ class RainIceParam:
     rimintp1: float = field(init=False)
     rimintp2: float = field(init=False)
 
-    ngaminc: "int" = field(init=False)  # Number of tab. Lbda_s
+    ngaminc: int = field(init=False)  # Number of tab. Lbda_s
 
     def __post_init__(self):
         # 4. CONSTANTS FOR THE SEDIMENTATION
@@ -407,5 +407,5 @@ class CloudPar:
 
     """
 
-    nsplitr: "int"
-    nsplitg: "int"
+    nsplitr: int
+    nsplitg: int

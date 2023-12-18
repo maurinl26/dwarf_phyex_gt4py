@@ -358,7 +358,7 @@ def ice_adjust(
             th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
 
 
-@stencil_collection("ice_adjust")
+@stencil_collection("iteration")
 def iteration(
     krr: "int",
     lmfconv: bool,

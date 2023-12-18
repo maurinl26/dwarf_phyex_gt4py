@@ -8,8 +8,10 @@ from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
 from phyex_gt4py.functions.ice_adjust import _cph, latent_heat
 from phyex_gt4py.functions.temperature import update_temperature
 from ifs_physics_common.framework.stencil import stencil_collection
+from ifs_physics_common.utils.f2py import ported_function
 
 
+@ported_function(from_file="PHYEX/src/common/micro/condensation.F90")
 @stencil_collection("condensation")
 def condensation(
     pabs: Field["float"],  # pressure (Pa)
@@ -124,24 +126,31 @@ def condensation(
         ifr[0, 0, 0] = 10
         frac_tmp[0, 0] = 0
 
+        # In Fortran : if fields are not None
+        hlc_hcf[0, 0, 0] = 0
+        hlc_hrc[0, 0, 0] = 0
+        hli_hcf[0, 0, 0] = 0
+        hli_hri[0, 0, 0] = 0
+
         rt[0, 0, 0] = rv_in + rc_in + ri_in * prifact
 
-        pv[0, 0] = min(
+        pv[0, 0, 0] = min(
             exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
             0.99 * pabs[0, 0, 0],
         )
-        piv[0, 0] = min(
+        piv[0, 0, 0] = min(
             exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
             0.99 * pabs[0, 0, 0],
         )
 
-        if rc_in[0, 0, 0] > ri_in[0, 0, 0] > 1e-20:
-            frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
+        if rc_in > ri_in:
+            if ri_in > 1e-20:
+                frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
 
         frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
 
-        qsl[0, 0] = Rd / Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
-        qsi[0, 0] = Rd / Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
+        qsl[0, 0, 0] = Rd / Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
+        qsi[0, 0, 0] = Rd / Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
 
         # dtype_interpolate bewteen liquid and solid as a function of temperature
         qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
@@ -172,7 +181,7 @@ def condensation(
         cond_tmp[0, 0] *= sigma[0, 0]
 
         # cloud fraction
-        if cond_tmp[0, 0] < 1e-12:
+        if cond_tmp < 1e-12:
             cldfr[0, 0, 0] = 0
         else:
             cldfr[0, 0, 0] = max(0, min(1, 0.5 + 0.36 * atan(1.55 * q1[0, 0])))
@@ -188,11 +197,6 @@ def condensation(
         sigrc[0, 0, 0] = min(
             1, (1 - inc) * src_1d[inq1 + 22] + inc * src_1d[inq1 + 1 + 22]
         )
-
-        hlc_hcf[0, 0, 0] = 0
-        hlc_hrc[0, 0, 0] = 0
-        hli_hcf[0, 0, 0] = 0
-        hli_hri[0, 0, 0] = 0
 
         rc_out[0, 0, 0] = (1 - frac_tmp[0, 0]) * cond_tmp[0, 0]  # liquid condensate
         ri_out[0, 0, 0] = frac_tmp[0, 0] * cond_tmp[0, 0]  # solid condensate
