@@ -27,18 +27,18 @@ def condensation(
     sigs: Field["float"],  # Sigma_s from turbulence scheme
     cldfr: Field["float"],
     sigrc: Field["float"],  # s r_c / sig_s ** 2
-    ls: Optional[Field["float"]],
-    lv: Optional[Field["float"]],
-    cph: Optional[Field["float"]],
+    ls: Field["float"],
+    lv: Field["float"],
+    cph: Field["float"],
     ifr: Field["float"],  # ratio cloud ice moist part
     sigqsat: Field[
         "float"
     ],  # use an extra qsat variance contribution (if osigma is True)
     # super-saturation with respect to in in the sub saturated fraction
-    hlc_hrc: Optional[Field["float"]],  #
-    hlc_hcf: Optional[Field["float"]],  # cloud fraction
-    hli_hri: Optional[Field["float"]],  #
-    hli_hcf: Optional[Field["float"]],
+    hlc_hrc: Field["float"],  #
+    hlc_hcf: Field["float"],  # cloud fraction
+    hli_hri: Field["float"],  #
+    hli_hcf: Field["float"],
     # Temporary fields
     cpd: Field["float"],
     rt: Field["float"],  # work array for total water mixing ratio

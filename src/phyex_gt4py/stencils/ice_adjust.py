@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Dict
 
 from gt4py.cartesian.gtscript import IJ, Field
 
@@ -44,7 +44,7 @@ def ice_adjust(
     rr: Field["float"],  # rain water m.r. to adjust
     rs: Field["float"],  # aggregate m.r. to adjust
     rg: Field["float"],  # graupel m.r. to adjust
-    rh: Optional[Field["float"]],  # hail m.r. to adjust (if krr = 7)
+    rh: Field["float"],  # hail m.r. to adjust (if krr = 7)
     ths: Field["float"],  # theta source
     rvs: Field["float"],  # water vapour m.r. source
     rcs: Field["float"],  # cloud water m.r. source
