@@ -24,23 +24,23 @@ def condensation(
     # rs: Field["float"],  # grid scale mixing ratio of snow (kg/kg)
     # rr: Field["float"],  # grid scale mixing ratio of rain (kg/kg)
     # rg: Field["float"],  # grid scale mixing ratio of graupel (kg/kg)
-    # sigs: Field["float"],  # Sigma_s from turbulence scheme
+    sigs: Field["float"],  # Sigma_s from turbulence scheme
     cldfr: Field["float"],
     sigrc: Field["float"],  # s r_c / sig_s ** 2
     ls: Field["float"],
     lv: Field["float"],
-    # cph: Field["float"],
+    cph: Field["float"],
     ifr: Field["float"],  # ratio cloud ice moist part
-    # sigqsat: Field[
-    #     "float"
-    # ],  # use an extra qsat variance contribution (if osigma is True)
+    sigqsat: Field[
+        "float"
+    ],  # use an extra qsat variance contribution (if osigma is True)
     # super-saturation with respect to in in the sub saturated fraction
     hlc_hrc: Field["float"],  #
     hlc_hcf: Field["float"],  # cloud fraction
     hli_hri: Field["float"],  #
     hli_hcf: Field["float"],
     # Temporary fields
-    # cpd: Field["float"],
+    cpd: Field["float"],
     rt: Field["float"],  # work array for total water mixing ratio
     pv: Field["float"],  # thermodynamics
     piv: Field["float"],  # thermodynamics
@@ -50,9 +50,9 @@ def condensation(
         "float"
     ],  # ice fraction # Translation note - 2D field in condensation.f90
     # cond_tmp: Field[ "float"],  # condensate  # Translation note - 2D field in condensation.f90
-    # a: Field["float"],  # related to computation of Sig_s
-    # sbar: Field[IJ, "float"],
-    # sigma: Field["float"], # 2D field in condensation.f90
+    a: Field["float"],  # related to computation of Sig_s
+    sbar: Field["float"],
+    sigma: Field["float"],  # 2D field in condensation.f90
     # q1: Field[IJ, "float"],
 ):
 
@@ -168,15 +168,15 @@ def condensation(
         lvs = (1 - frac_tmp) * lv + frac_tmp * ls
 
         # # coefficients a et b
-        # ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
-        # a[0, 0, 0] = 1 / (1 + lvs / cpd[0, 0, 0] * ah)
+        ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
+        a[0, 0, 0] = 1 / (1 + lvs / cph[0, 0, 0] * ah)
         # # b[0, 0, 0] = ah * a
-        # sbar = a * (
-        #     rt[0, 0, 0] - qsl[0, 0, 0] + ah * lvs * (rc_in + ri_in * prifact) / cpd
-        # )
+        sbar = a * (
+            rt[0, 0, 0] - qsl[0, 0, 0] + ah * lvs * (rc_in + ri_in * prifact) / cpd
+        )
 
-        # sigma[0, 0] = sqrt((2 * sigs) ** 2 + (sigqsat * qsl * a) ** 2)
-        # sigma[0, 0] = max(1e-10, sigma[0, 0])
+        sigma[0, 0, 0] = sqrt((2 * sigs) ** 2 + (sigqsat * qsl * a) ** 2)
+        sigma[0, 0, 0] = max(1e-10, sigma[0, 0, 0])
 
         # # normalized saturation deficit
         # q1[0, 0] = sbar[0, 0] / sigma[0, 0, 0]
