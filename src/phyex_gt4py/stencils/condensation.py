@@ -13,8 +13,8 @@ from ifs_physics_common.utils.f2py import ported_function
 @ported_function(from_file="PHYEX/src/common/micro/condensation.F90")
 @stencil_collection("condensation")
 def condensation(
-    # pabs: Field["float"],  # pressure (Pa)
-    # t: Field["float"],  # T (K)
+    pabs: Field["float"],  # pressure (Pa)
+    t: Field["float"],  # T (K)
     rv_in: Field["float"],
     rc_in: Field["float"],
     ri_in: Field["float"],
@@ -27,8 +27,8 @@ def condensation(
     # sigs: Field["float"],  # Sigma_s from turbulence scheme
     cldfr: Field["float"],
     sigrc: Field["float"],  # s r_c / sig_s ** 2
-    # ls: Field["float"],
-    # lv: Field["float"],
+    ls: Field["float"],
+    lv: Field["float"],
     # cph: Field["float"],
     ifr: Field["float"],  # ratio cloud ice moist part
     # sigqsat: Field[
@@ -42,10 +42,10 @@ def condensation(
     # Temporary fields
     # cpd: Field["float"],
     rt: Field["float"],  # work array for total water mixing ratio
-    # pv: Field["float"],  # thermodynamics
-    # piv: Field["float"],  # thermodynamics
-    # qsl: Field["float"],  # thermodynamics
-    # qsi: Field["float"],
+    pv: Field["float"],  # thermodynamics
+    piv: Field["float"],  # thermodynamics
+    qsl: Field["float"],  # thermodynamics
+    qsi: Field["float"],
     frac_tmp: Field[
         "float"
     ],  # ice fraction # Translation note - 2D field in condensation.f90
@@ -56,25 +56,25 @@ def condensation(
     # q1: Field[IJ, "float"],
 ):
 
-    # from __externals__ import (
-    #     # lvtt,
-    #     # lstt,
-    #     # tt,
-    #     # cpv,
-    #     # Cl,
-    #     # Ci,
-    #     # alpw,
-    #     # betaw,
-    #     # gamw,
-    #     # alpi,
-    #     # betai,
-    #     # gami,
-    #     # Rd,
-    #     # Rv,
-    #     # frac_ice_adjust,
-    #     # tmaxmix,
-    #     # tminmix,
-    # )
+    from __externals__ import (
+        #     # lvtt,
+        #     # lstt,
+        tt,
+        #     # cpv,
+        #     # Cl,
+        #     # Ci,
+        alpw,
+        betaw,
+        gamw,
+        alpi,
+        betai,
+        gami,
+        Rd,
+        Rv,
+        frac_ice_adjust,
+        tmaxmix,
+        tminmix,
+    )
 
     # TODO : move src_1d into externals
     # src_1d = [
@@ -145,27 +145,27 @@ def condensation(
         # Translation note : 316 -> 331 (ocnd2 == True) skipped
 
         #
-        # pv[0, 0, 0] = min(
-        #     exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
-        #     0.99 * pabs[0, 0, 0],
-        # )
-        # piv[0, 0, 0] = min(
-        #     exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
-        #     0.99 * pabs[0, 0, 0],
-        # )
+        pv[0, 0, 0] = min(
+            exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
+            0.99 * pabs[0, 0, 0],
+        )
+        piv[0, 0, 0] = min(
+            exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
+            0.99 * pabs[0, 0, 0],
+        )
 
-        # if rc_in > ri_in:
-        #     if ri_in > 1e-20:
-        #         frac_tmp[0, 0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
+        if rc_in > ri_in:
+            if ri_in > 1e-20:
+                frac_tmp[0, 0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
 
-        # frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
+        frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
 
-        # qsl[0, 0, 0] = Rd / Rv * pv[0, 0, 0] / (pabs[0, 0, 0] - pv[0, 0, 0])
-        # qsi[0, 0, 0] = Rd / Rv * piv[0, 0, 0] / (pabs[0, 0, 0] - piv[0, 0, 0])
+        qsl[0, 0, 0] = Rd / Rv * pv[0, 0, 0] / (pabs[0, 0, 0] - pv[0, 0, 0])
+        qsi[0, 0, 0] = Rd / Rv * piv[0, 0, 0] / (pabs[0, 0, 0] - piv[0, 0, 0])
 
         # # dtype_interpolate bewteen liquid and solid as a function of temperature
-        # qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
-        # lvs = (1 - frac_tmp) * lv + frac_tmp * ls
+        qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
+        lvs = (1 - frac_tmp) * lv + frac_tmp * ls
 
         # # coefficients a et b
         # ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
