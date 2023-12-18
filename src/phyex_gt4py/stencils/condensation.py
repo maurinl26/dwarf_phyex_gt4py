@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing import Optional
 
 from gt4py.cartesian.gtscript import IJ, Field
 from gt4py.cartesian.gtscript import sqrt, exp, log, atan, floor
@@ -11,7 +10,7 @@ from phyex_gt4py.functions.temperature import update_temperature
 from ifs_physics_common.framework.stencil import stencil_collection
 
 
-@stencil_collection("ice_adjust")
+@stencil_collection("condensation")
 def condensation(
     pabs: Field["float"],  # pressure (Pa)
     t: Field["float"],  # T (K)
@@ -52,25 +51,6 @@ def condensation(
     sbar: Field[IJ, "float"],
     sigma: Field[IJ, "float"],
     q1: Field[IJ, "float"],
-    # Condensation constants
-    lvtt,
-    lstt,
-    tt,
-    cpv,
-    Cl,
-    Ci,
-    alpw,
-    betaw,
-    gamw,
-    alpi,
-    betai,
-    gami,
-    Rd,
-    Rv,
-    # Neb parameters
-    frac_ice_adjust: str,
-    tmaxmix,
-    tminmix,
 ):
 
     from __externals__ import (
@@ -88,12 +68,12 @@ def condensation(
         gami,
         Rd,
         Rv,
-        # Neb parameters
         frac_ice_adjust,
         tmaxmix,
         tminmix,
     )
 
+    # TODO : move src_1d into externals
     src_1d = [
         0.0,
         0.0,
@@ -133,7 +113,6 @@ def condensation(
 
     # Initialize values
     with computation(PARALLEL), interval(...):
-        prifact = 1  # ocnd2 == False for AROME
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
@@ -141,16 +120,11 @@ def condensation(
         ri_out[0, 0, 0] = 0
 
         # local fields
+        prifact = 1  # ocnd2 == False for AROME
         ifr[0, 0, 0] = 10
         frac_tmp[0, 0] = 0
 
         rt[0, 0, 0] = rv_in + rc_in + ri_in * prifact
-
-        if ls is None and lv is None:
-            lv, ls = latent_heat(lvtt, lstt, cpv, tt, t)
-
-        if cph is None:
-            cpd = _cph(rv_in, rc_in, ri_in, rr, rs, rg, cpd, cpv, Cl, Ci)
 
         pv[0, 0] = min(
             exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
@@ -164,7 +138,7 @@ def condensation(
         if rc_in[0, 0, 0] > ri_in[0, 0, 0] > 1e-20:
             frac_tmp[0, 0] = ri_in[0, 0, 0] / (rc_in[0, 0, 0] + ri_in[0, 0, 0])
 
-        _, frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp)
+        frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
 
         qsl[0, 0] = Rd / Rv * pv[0, 0] / (pabs[0, 0, 0] - pv[0, 0])
         qsi[0, 0] = Rd / Rv * piv[0, 0] / (pabs[0, 0, 0] - piv[0, 0])
@@ -215,13 +189,10 @@ def condensation(
             1, (1 - inc) * src_1d[inq1 + 22] + inc * src_1d[inq1 + 1 + 22]
         )
 
-        if hlc_hcf is not None and hlc_hrc is not None:
-            hlc_hcf[0, 0, 0] = 0
-            hlc_hrc[0, 0, 0] = 0
-
-        if hli_hcf is not None and hli_hri is not None:
-            hli_hcf[0, 0, 0] = 0
-            hli_hri[0, 0, 0] = 0
+        hlc_hcf[0, 0, 0] = 0
+        hlc_hrc[0, 0, 0] = 0
+        hli_hcf[0, 0, 0] = 0
+        hli_hri[0, 0, 0] = 0
 
         rc_out[0, 0, 0] = (1 - frac_tmp[0, 0]) * cond_tmp[0, 0]  # liquid condensate
         ri_out[0, 0, 0] = frac_tmp[0, 0] * cond_tmp[0, 0]  # solid condensate
