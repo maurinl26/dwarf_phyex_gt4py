@@ -12,6 +12,10 @@ class FracIceAdjust(Enum):
     S = 3
 
 
+class FracIceShallow(Enum):
+    T = 0
+
+
 @ported_class(from_file="PHYEX/src/common/aux/modd_nebn.F90")
 @dataclass
 class Neb:
@@ -50,8 +54,8 @@ class Neb:
 
     def __post_init__(self):
         if self.hprogram == "AROME":
-            self.frac_ice_adjust = "S"
-            self.frac_ice_shallow = "T"
+            self.frac_ice_adjust = FracIceAdjust.S.value
+            self.frac_ice_shallow = FracIceShallow.T.value
             self.vsigqsat = 0
             self.sigmas = False
 
