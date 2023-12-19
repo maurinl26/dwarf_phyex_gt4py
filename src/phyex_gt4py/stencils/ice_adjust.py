@@ -11,6 +11,11 @@ from phyex_gt4py.phyex_common.rain_ice_param import RainIceParam
 from phyex_gt4py.phyex_common.param_ice import ParamIce
 from phyex_gt4py.stencils.condensation import condensation
 from ifs_physics_common.framework.stencil import stencil_collection
+from phyex_gt4py.stencils.mass_flux import mass_flux
+from phyex_gt4py.stencils.subgrid_autoconversions import (
+    droplet_subgrid_autoconversions,
+    ice_subgrid_autoconversions,
+)
 
 
 @stencil_collection("mixing_ratio_variation")
@@ -214,6 +219,7 @@ def ice_adjust(
             srcs[0, 0, 0] = cldfr[0, 0, 0] if compute_srcs else None
 
         # Translation note : LSUBG_COND = TRUE for Arome
+
         else:
             w1 = rc_mf[0, 0, 0] / tstep
             w2 = ri_mf[0, 0, 0] / tstep
@@ -230,104 +236,26 @@ def ice_adjust(
                 (w1 * lv[0, 0, 0] + w2 * ls[0, 0, 0]) / cph[0, 0, 0] / exnref[0, 0, 0]
             )
 
-            # Present in Arome
-            if hlc_hrc is not None and hlc_hcf is not None:
-                criaut = icep.criautc / rhodref[0, 0, 0]
+    droplet_subgrid_autoconversions(cf_mf, hlc_hrc, hlc_hcf, w1)
 
-                if subg_mf_pdf == "NONE":
-                    if w1 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hlc_hrc += w1 * tstep
-                        hlc_hcf = min(1, hlc_hcf[0, 0, 0] + cf_mf[0, 0, 0])
+    ice_subgrid_autoconversions(cf_mf, hli_hri, hli_hcf, w2, t_tmp)
 
-                elif subg_mf_pdf == "TRIANGLE":
-                    if w1 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(
-                            1e-20, w1 * tstep
-                        )
-                        hr = w1 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
-                            3 * max(1e-20, w1 * tstep)
-                        )
-
-                    elif 2 * w1 * tstep <= cf_mf[0, 0, 0] * criaut:
-                        hcf = 0
-                        hr = 0
-
-                    else:
-                        hcf = (2 * w1 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
-                            2.0 * max(1.0e-20, w1 * tstep) ** 2
-                        )
-                        hr = (
-                            4.0 * (w1 * tstep) ** 3
-                            - 3.0 * w1 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
-                            + (criaut * cf_mf[0, 0, 0]) ** 3
-                        ) / (3 * max(1.0e-20, w1 * tstep) ** 2)
-
-                    hcf *= cf_mf[0, 0, 0]
-                    hlc_hcf = min(1, hlc_hcf + hcf)
-                    hlc_hrc += hr
-
-            # Present in Arome
-            if hli_hri is not None and hli_hcf is not None:
-                criaut = min(
-                    icep.criauti,
-                    10 ** (icep.acriauti * (t_tmp[0, 0, 0] - tt) + icep.bcriauti),
-                )
-
-                if subg_mf_pdf == "NONE":
-                    if w2 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hli_hri += w2 * tstep
-                        hli_hcf = min(1, hli_hcf[0, 0, 0] + cf_mf[0, 0, 0])
-
-                elif subg_mf_pdf == "TRIANGLE":
-                    if w2 * tstep > cf_mf[0, 0, 0] * criaut:
-                        hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(
-                            1e-20, w2 * tstep
-                        )
-                        hr = w2 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
-                            3 * max(1e-20, w2 * tstep)
-                        )
-
-                    elif 2 * w2 * tstep <= cf_mf[0, 0, 0] * criaut:
-                        hcf = 0
-                        hr = 0
-
-                    else:
-                        hcf = (2 * w2 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
-                            2.0 * max(1.0e-20, w2 * tstep) ** 2
-                        )
-                        hr = (
-                            4.0 * (w2 * tstep) ** 3
-                            - 3.0 * w2 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
-                            + (criaut * cf_mf[0, 0, 0]) ** 3
-                        ) / (3 * max(1.0e-20, w2 * tstep) ** 2)
-
-                    hcf *= cf_mf[0, 0, 0]
-                    hli_hcf = min(1, hli_hcf + hcf)
-                    hli_hri += hr
-
-        if (
-            rv_out is not None
-            or rc_out is not None
-            or ri_out is not None
-            or th is not None
-        ):
-            w1 = rc_mf
-            w2 = ri_mf
-
-            if w1 + w2 > rv_out[0, 0, 0]:
-                w1 *= rv_tmp / (w1 + w2)
-                w2 = rv_tmp - w1
-
-            rc_tmp[0, 0, 0] += w1
-            ri_tmp[0, 0, 0] += w2
-            rv_tmp[0, 0, 0] -= w1 + w2
-            t_tmp += (w1 * lv + w2 * ls) / cph
-
-            # TODO :  remove unused out variables
-            rv_out[0, 0, 0] = rv_tmp[0, 0, 0]
-            ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
-            rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
-            th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
+    mass_flux(
+        rc_mf,
+        ri_mf,
+        rv_tmp,
+        rc_tmp,
+        ri_tmp,
+        rv_out,
+        rc_out,
+        ri_out,
+        t_tmp,
+        th_out,
+        exn,
+        ls,
+        lv,
+        cph,
+    )
 
 
 @stencil_collection("specific_heat")
