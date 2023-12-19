@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from gt4py.cartesian.gtscript import IJ, Field
+from gt4py.cartesian.gtscript import IJ, Field, function
 from gt4py.cartesian.gtscript import sqrt, exp, log, atan, floor
 
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
@@ -49,11 +49,13 @@ def condensation(
     frac_tmp: Field[
         "float"
     ],  # ice fraction # Translation note - 2D field in condensation.f90
-    # cond_tmp: Field[ "float"],  # condensate  # Translation note - 2D field in condensation.f90
+    cond_tmp: Field[
+        "float"
+    ],  # condensate  # Translation note - 2D field in condensation.f90
     a: Field["float"],  # related to computation of Sig_s
     sbar: Field["float"],
     sigma: Field["float"],  # 2D field in condensation.f90
-    # q1: Field[IJ, "float"],
+    q1: Field["float"],
 ):
 
     from __externals__ import (
@@ -78,40 +80,40 @@ def condensation(
 
     # TODO : move src_1d into externals
     # src_1d = [
-    #     0.0,
-    #     0.0,
-    #     2.0094444e-04,
-    #     0.316670e-03,
-    #     4.9965648e-04,
-    #     0.785956e-03,
-    #     1.2341294e-03,
-    #     0.193327e-02,
-    #     3.0190963e-03,
-    #     0.470144e-02,
-    #     7.2950651e-03,
-    #     0.112759e-01,
-    #     1.7350994e-02,
-    #     0.265640e-01,
-    #     4.0427860e-02,
-    #     0.610997e-01,
-    #     9.1578111e-02,
-    #     0.135888e00,
-    #     0.1991484,
-    #     0.230756e00,
-    #     0.2850565,
-    #     0.375050e00,
-    #     0.5000000,
-    #     0.691489e00,
-    #     0.8413813,
-    #     0.933222e00,
-    #     0.9772662,
-    #     0.993797e00,
-    #     0.9986521,
-    #     0.999768e00,
-    #     0.9999684,
-    #     0.999997e00,
-    #     1.0000000,
-    #     1.000000,
+    # src_1d_0 = 0.0,
+    # src_1d_1 =     0.0,
+    # src_1d_2 =     2.0094444e-04,
+    # src_1d_3 =     0.316670e-03,
+    # src_1d_4 =     4.9965648e-04,
+    # src_1d_5 =     0.785956e-03,
+    # src_1d_6 =     1.2341294e-03,
+    # src_1d_7 =     0.193327e-02,
+    # src_1d_8 =     3.0190963e-03,
+    # src_1d_9 =     0.470144e-02,
+    # src_1d_10 =     7.2950651e-03,
+    # src_1d_11 =     0.112759e-01,
+    # src_1d_12 =     1.7350994e-02,
+    # src_1d_13 =    0.265640e-01,
+    # src_1d_14 =    4.0427860e-02,
+    # src_1d_15 =    0.610997e-01,
+    # src_1d_16 =    9.1578111e-02,
+    # src_1d_17 =    0.135888e00,
+    # src_1d_18 =    0.1991484,
+    # src_1d_19 =    0.230756e00,
+    # src_1d_20 =    0.2850565,
+    # src_1d_21 =    0.375050e00,
+    # src_1d_22 =    0.5000000,
+    # src_1d_23 =    0.691489e00,
+    # src_1d_24 =   0.8413813,
+    # src_1d_25 =    0.933222e00,
+    # src_1d_26 =    0.9772662,
+    # src_1d_27 =    0.993797e00,
+    # src_1d_28 =    0.9986521,
+    # src_1d_29 =    0.999768e00,
+    # src_1d_30 =    0.9999684,
+    # src_1d_31 =    0.999997e00,
+    # src_1d_32 =    1.0000000,
+    # src_1d_33 =   1.000000,
     # ]
 
     # Initialize values
@@ -178,41 +180,122 @@ def condensation(
         sigma[0, 0, 0] = sqrt((2 * sigs) ** 2 + (sigqsat * qsl * a) ** 2)
         sigma[0, 0, 0] = max(1e-10, sigma[0, 0, 0])
 
-        # # normalized saturation deficit
-        # q1[0, 0] = sbar[0, 0] / sigma[0, 0, 0]
-        # if q1 > 0:
-        #     if q1 <= 2:
-        #         cond_tmp[0, 0, 0] = min(
-        #             exp(-1) + 0.66 * q1[0, 0] + 0.086 * q1[0, 0] ** 2, 2
-        #     )  # we use the MIN function for continuity
-        # elif q1 > 2:
-        #     cond_tmp[0, 0, 0] = q1[0, 0]
-        # else:
-        #     cond_tmp[0, 0, 0] = exp(1.2 * q1[0, 0] - 1)
+        # Translation notes : 469 -> 504 (hcondens = "CB02")
+        # normalized saturation deficit
+        q1[0, 0, 0] = sbar[0, 0, 0] / sigma[0, 0, 0]
+        if q1 > 0:
+            if q1 <= 2:
+                cond_tmp[0, 0, 0] = min(
+                    exp(-1) + 0.66 * q1[0, 0, 0] + 0.086 * q1[0, 0, 0] ** 2, 2
+                )  # we use the MIN function for continuity
+        elif q1 > 2:
+            cond_tmp[0, 0, 0] = q1[0, 0, 0]
+        else:
+            cond_tmp[0, 0, 0] = exp(1.2 * q1[0, 0, 0] - 1)
 
-        # cond_tmp[0, 0, 0] *= sigma[0, 0, 0]
+        cond_tmp[0, 0, 0] *= sigma[0, 0, 0]
 
-        # # cloud fraction
-        # if cond_tmp < 1e-12:
-        #     cldfr[0, 0, 0] = 0
-        # else:
-        #     cldfr[0, 0, 0] = max(0, min(1, 0.5 + 0.36 * atan(1.55 * q1[0, 0])))
+        # cloud fraction
+        if cond_tmp < 1e-12:
+            cldfr[0, 0, 0] = 0
+        else:
+            cldfr[0, 0, 0] = max(0, min(1, 0.5 + 0.36 * atan(1.55 * q1[0, 0, 0])))
 
-        # if cldfr[0, 0, 0] == 0:
-        #     cond_tmp[0, 0, 0] = 0
+        if cldfr[0, 0, 0] == 0:
+            cond_tmp[0, 0, 0] = 0
 
-        # inq1 = min(
-        #     10, max(-22, floor(min(-100, 2 * q1[0, 0])))
-        # )  # inner min/max prevents sigfpe when 2*zq1 does not fit dtype_into an "int"
-        # inc = 2 * q1 - inq1
+        inq1 = min(
+            10, max(-22, floor(min(-100, 2 * q1[0, 0, 0])))
+        )  # inner min/max prevents sigfpe when 2*zq1 does not fit dtype_into an "int"
+        inc = 2 * q1 - inq1
 
-        # sigrc[0, 0, 0] = min(
-        #     1, (1 - inc) * src_1d[inq1 + 22] + inc * src_1d[inq1 + 1 + 22]
-        # )
+        sigrc[0, 0, 0] = min(
+            1, (1 - inc) * src_1d(inq1 + 22) + inc * src_1d(inq1 + 1 + 22)
+        )
 
-        # rc_out[0, 0, 0] = (1 - frac_tmp[0, 0, 0]) * cond_tmp[0, 0, 0]  # liquid condensate
-        # ri_out[0, 0, 0] = frac_tmp[0, 0, 0] * cond_tmp[0, 0, 0]  # solid condensate
-        # t[0, 0, 0] = update_temperature(t, rc_in, rc_out, ri_in, ri_out, lv, ls, cpd)
-        # rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
+        # # Translation notes : 506 -> 514 (not ocnd2)
+        rc_out[0, 0, 0] = (1 - frac_tmp[0, 0, 0]) * cond_tmp[
+            0, 0, 0
+        ]  # liquid condensate
+        ri_out[0, 0, 0] = frac_tmp[0, 0, 0] * cond_tmp[0, 0, 0]  # solid condensate
+        t[0, 0, 0] = update_temperature(t, rc_in, rc_out, ri_in, ri_out, lv, ls, cpd)
+        rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
 
-        # sigrc[0, 0, 0] *= min(3, max(1, 1 - q1[0, 0]))
+        sigrc[0, 0, 0] = sigrc[0, 0, 0] * min(3, max(1, 1 - q1[0, 0, 0]))
+
+
+@function
+def src_1d(inq: int):
+
+    src = 0
+
+    if inq == 0:
+        src = 0.0
+    if inq == 1:
+        src = 0.0
+    if inq == 2:
+        src = 2.0094444e-04
+    if inq == 3:
+        src = 0.316670e-03
+    if inq == 4:
+        src = 4.9965648e-04
+    if inq == 5:
+        src = 0.785956e-03
+    if inq == 6:
+        src = 1.2341294e-03
+    if inq == 7:
+        src = 0.193327e-02
+    if inq == 8:
+        src = 3.0190963e-03
+    if inq == 9:
+        src = 0.470144e-02
+    if inq == 10:
+        src = 7.2950651e-03
+    if inq == 11:
+        src = 0.112759e-01
+    if inq == 12:
+        src = 1.7350994e-02
+    if inq == 13:
+        src = 0.265640e-01
+    if inq == 14:
+        4.0427860e-02
+    if inq == 15:
+        src = 0.610997e-01
+    if inq == 16:
+        src = 9.1578111e-02
+    if inq == 17:
+        src = 0.135888
+    if inq == 18:
+        src = 0.1991484
+    if inq == 19:
+        src = 0.230756
+    if inq == 20:
+        src = 0.2850565
+    if inq == 21:
+        src = 0.375050
+    if inq == 22:
+        src = 0.5000000
+    if inq == 23:
+        src = 0.691489
+    if inq == 24:
+        src = 0.8413813
+    if inq == 25:
+        src = 0.933222
+    if inq == 26:
+        src = 0.9772662
+    if inq == 27:
+        src = 0.993797
+    if inq == 28:
+        src = 0.9986521
+    if inq == 29:
+        src = 0.999768
+    if inq == 30:
+        src = 0.9999684
+    if inq == 31:
+        src = 0.999997
+    if inq == 32:
+        src = 1.0000000
+    if inq == 33:
+        src = 1.000000
+
+    return src

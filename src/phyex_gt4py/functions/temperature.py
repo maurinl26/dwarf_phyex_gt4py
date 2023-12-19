@@ -15,7 +15,7 @@ def update_temperature(
     ls: Field["float"],
     cpd: Field["float"],
 ):
-    t[0, 0, 0] = (
+    t = (
         t[0, 0, 0]
         + (
             (rc_out[0, 0, 0] - rc_in[0, 0, 0]) * lv[0, 0, 0]
