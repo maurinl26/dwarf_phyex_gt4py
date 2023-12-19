@@ -21,9 +21,6 @@ def condensation(
     rv_out: Field["float"],
     rc_out: Field["float"],
     ri_out: Field["float"],
-    # rs: Field["float"],  # grid scale mixing ratio of snow (kg/kg)
-    # rr: Field["float"],  # grid scale mixing ratio of rain (kg/kg)
-    # rg: Field["float"],  # grid scale mixing ratio of graupel (kg/kg)
     sigs: Field["float"],  # Sigma_s from turbulence scheme
     cldfr: Field["float"],
     sigrc: Field["float"],  # s r_c / sig_s ** 2
@@ -34,13 +31,10 @@ def condensation(
     sigqsat: Field[
         "float"
     ],  # use an extra qsat variance contribution (if osigma is True)
-    # super-saturation with respect to in in the sub saturated fraction
     hlc_hrc: Field["float"],  #
     hlc_hcf: Field["float"],  # cloud fraction
     hli_hri: Field["float"],  #
     hli_hcf: Field["float"],
-    # Temporary fields
-    cpd: Field["float"],
     rt: Field["float"],  # work array for total water mixing ratio
     pv: Field["float"],  # thermodynamics
     piv: Field["float"],  # thermodynamics
@@ -59,12 +53,7 @@ def condensation(
 ):
 
     from __externals__ import (
-        #     # lvtt,
-        #     # lstt,
         tt,
-        #     # cpv,
-        #     # Cl,
-        #     # Ci,
         alpw,
         betaw,
         gamw,
@@ -77,44 +66,6 @@ def condensation(
         tmaxmix,
         tminmix,
     )
-
-    # TODO : move src_1d into externals
-    # src_1d = [
-    # src_1d_0 = 0.0,
-    # src_1d_1 =     0.0,
-    # src_1d_2 =     2.0094444e-04,
-    # src_1d_3 =     0.316670e-03,
-    # src_1d_4 =     4.9965648e-04,
-    # src_1d_5 =     0.785956e-03,
-    # src_1d_6 =     1.2341294e-03,
-    # src_1d_7 =     0.193327e-02,
-    # src_1d_8 =     3.0190963e-03,
-    # src_1d_9 =     0.470144e-02,
-    # src_1d_10 =     7.2950651e-03,
-    # src_1d_11 =     0.112759e-01,
-    # src_1d_12 =     1.7350994e-02,
-    # src_1d_13 =    0.265640e-01,
-    # src_1d_14 =    4.0427860e-02,
-    # src_1d_15 =    0.610997e-01,
-    # src_1d_16 =    9.1578111e-02,
-    # src_1d_17 =    0.135888e00,
-    # src_1d_18 =    0.1991484,
-    # src_1d_19 =    0.230756e00,
-    # src_1d_20 =    0.2850565,
-    # src_1d_21 =    0.375050e00,
-    # src_1d_22 =    0.5000000,
-    # src_1d_23 =    0.691489e00,
-    # src_1d_24 =   0.8413813,
-    # src_1d_25 =    0.933222e00,
-    # src_1d_26 =    0.9772662,
-    # src_1d_27 =    0.993797e00,
-    # src_1d_28 =    0.9986521,
-    # src_1d_29 =    0.999768e00,
-    # src_1d_30 =    0.9999684,
-    # src_1d_31 =    0.999997e00,
-    # src_1d_32 =    1.0000000,
-    # src_1d_33 =   1.000000,
-    # ]
 
     # Initialize values
     with computation(PARALLEL), interval(...):
