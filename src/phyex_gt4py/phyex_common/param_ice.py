@@ -3,6 +3,13 @@ from dataclasses import dataclass, field
 from typing import Literal
 import numpy as np
 from ifs_physics_common.utils.f2py import ported_class
+from enum import Enum
+
+
+class SubGridMassFluxPDF(Enum):
+
+    NONE = 0
+    TRIANGLE = 1
 
 
 @ported_class(from_file="PHYEX/src/common/aux/modd_param_icen.F90")
@@ -45,8 +52,8 @@ class ParamIce:
     subg_rr_pdf: str = field(default="SIGM")  # pdf for subgrid precipitation
     subg_aucv_rc: str = field(default="NONE")  # type of subgrid rc->rr autoconv. method
     subg_aucv_ri: str = field(default="NONE")  # type of subgrid ri->rs autoconv. method
-    subg_mf_pdf: str = field(
-        default="TRIANGLE"
+    subg_mf_pdf: int = field(
+        default=SubGridMassFluxPDF.TRIANGLE.value
     )  # PDF to use for MF cloud autoconversions
 
     ladj_before: bool = field(
