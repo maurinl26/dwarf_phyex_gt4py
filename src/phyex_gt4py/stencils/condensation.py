@@ -54,6 +54,7 @@ def condensation(
 
     from __externals__ import (
         tt,
+        cpd,
         alpw,
         betaw,
         gamw,
