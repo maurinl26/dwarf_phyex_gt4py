@@ -18,16 +18,6 @@ def mixing_ratio():
     NotImplemented
 
 
-@stencil_collection("hlc_hrc")
-def cloud_cover():
-    NotImplemented
-
-
-@stencil_collection("hli_hri")
-def ice_cloud_cover():
-    NotImplemented
-
-
 def ice_adjust(
     cst: Constants,
     parami: ParamIce,
@@ -58,7 +48,7 @@ def ice_adjust(
     rr: Field["float"],  # rain water m.r. to adjust
     rs: Field["float"],  # aggregate m.r. to adjust
     rg: Field["float"],  # graupel m.r. to adjust
-    rh: Field["float"],  # hail m.r. to adjust (if krr = 7)
+    rh: Field["float"],  # hail m.r. to adjust (if nrr = 7)
     ths: Field["float"],  # theta source
     rvs: Field["float"],  # water vapour m.r. source
     rcs: Field["float"],  # cloud water m.r. source
@@ -118,7 +108,7 @@ def ice_adjust(
         compute_srcs (bool): boolean to compute second order flux
         itermax ("int"): _description_
         tstep ("float"): double time step
-        krr (int)
+        nrr (int)
         icldfr (Field["float"]): _description_
         hlc_hcf (Field["float"]): _description_
         hli_hri (Field["float"]): _description_
@@ -144,62 +134,20 @@ def ice_adjust(
         t_tmp = th[0, 0, 0] * exn[0, 0, 0]
         lv, ls = latent_heat(lvtt, lstt, cpv, tt, t_tmp)
 
-    # jiter  = 0
-    rv_tmp, rc_tmp, ri_tmp = iteration(
-        rv_in=rv,
-        rc_in=rc,
-        ri_in=ri,
-        rv_out=rv_tmp,
-        rc_out=rc_tmp,
-        ri_out=ri_tmp,
-        #
-        cst=cst,
-        neb=neb,
-        krr=nrr,
-        lmfconv=lmfconv,
-        pabs=pabs,
-        t_tmp=t_tmp,
-        lv=lv,
-        ls=ls,
-        rr=rr,
-        rs=rs,
-        rg=rg,
-        rh=rh,
-        sigs=sigs,
-        cldfr=cldfr,
-        srcs=srcs,
-        sigqsat=sigqsat,
-        cph=cph,
-        ifr=ifr,
-        # super-saturation with respect to in in the sub saturated fraction
-        hlc_hrc=hlc_hrc,
-        hlc_hcf=hlc_hcf,  # cloud fraction
-        hli_hri=hli_hri,
-        hli_hcf=hli_hcf,
-        # Temporary fields - Condensation
-        cpd=cpd,
-        rt=rt,  # work array for total water mixing ratio
-        pv=pv,  # thermodynamics
-        piv=piv,  # thermodynamics
-        qsl=qsl,  # thermodynamics
-        qsi=qsi,
-        frac_tmp=frac_tmp,  # ice fraction
-        cond_tmp=cond_tmp,  # condensate
-        a=a,  # related to computation of Sig_s
-        sbar=sbar,
-        sigma=sigma,
-        q1=q1,
-    )
+        # Rem
+        rv_tmp[0, 0, 0] = rv_in[0, 0, 0]
+        ri_tmp[0, 0, 0] = ri_in[0, 0, 0]
+        rc_tmp[0, 0, 0] = rc_in[0, 0, 0]
 
     # jiter > 0
-    for jiter in range(1, itermax):
+    for jiter in range(0, itermax):
         # backup(rv_tmp, rc_tmp, ri_tmp)
         # Specific heat computation
         specific_heat(
-            krr,
-            rv_in,
-            rc_in,
-            ri_in,
+            nrr,
+            rv_tmp,
+            rc_tmp,
+            ri_tmp,
             rr,
             rs,
             rg,
@@ -211,11 +159,11 @@ def ice_adjust(
         condensation(
             pabs=pabs,
             t=t_tmp,
-            rv_in=rv_in,
+            rv_in=rv_tmp,
             rv_out=rv_out,
-            rc_in=rc_in,
+            rc_in=rc_tmp,
             rc_out=rc_out,
-            ri_in=ri_in,
+            ri_in=ri_tmp,
             ri_out=ri_out,
             rr=rr,
             rs=rs,
@@ -282,6 +230,7 @@ def ice_adjust(
                 (w1 * lv[0, 0, 0] + w2 * ls[0, 0, 0]) / cph[0, 0, 0] / exnref[0, 0, 0]
             )
 
+            # Present in Arome
             if hlc_hrc is not None and hlc_hcf is not None:
                 criaut = icep.criautc / rhodref[0, 0, 0]
 
@@ -317,6 +266,7 @@ def ice_adjust(
                     hlc_hcf = min(1, hlc_hcf + hcf)
                     hlc_hrc += hr
 
+            # Present in Arome
             if hli_hri is not None and hli_hcf is not None:
                 criaut = min(
                     icep.criauti,
@@ -382,7 +332,7 @@ def ice_adjust(
 
 @stencil_collection("specific_heat")
 def specific_heat(
-    krr: int,
+    nrr: int,
     rv_in: Field["float"],
     rc_in: Field["float"],
     ri_in: Field["float"],
@@ -397,116 +347,14 @@ def specific_heat(
 
     # 2.4 specific heat for moist air at t+1
     with computation(PARALLEL), interval(...):
-        if krr == 7:
+        if nrr == 7:
             cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs + rg + rh)
 
-        if krr == 6:
+        if nrr == 6:
             cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs + rg)
-        if krr == 5:
+        if nrr == 5:
             cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs)
-        if krr == 4:
+        if nrr == 4:
             cph = cpd + cpv * rv_in + Cl * (rc_in + rr)
-        if krr == 2:
+        if nrr == 2:
             cph = cpd + cpv * rv_in + Cl * rc_in + Ci * ri_in
-
-
-def iteration(
-    krr: "int",
-    lmfconv: bool,
-    pabs: Field["float"],
-    zz: Field["float"],
-    rhodref: Field["float"],
-    t_tmp: Field["float"],
-    lv: Field["float"],
-    ls: Field["float"],
-    rv_in: Field["float"],
-    ri_in: Field["float"],
-    rc_in: Field["float"],
-    rv_out: Field["float"],
-    rc_out: Field["float"],
-    ri_out: Field["float"],
-    rr: Field["float"],
-    rs: Field["float"],
-    rg: Field["float"],
-    rh: Field["float"],
-    sigs: Field["float"],
-    mfconv: Field["float"],
-    cldfr: Field["float"],
-    sigqsat: Field["float"],
-    srcs: Field["float"],
-    icldfr: Field["float"],
-    wcldfr: Field["float"],
-    ssio: Field["float"],
-    ssiu: Field["float"],
-    ifr: Field["float"],
-    hlc_hrc: Field["float"],
-    hlc_hcf: Field["float"],
-    hli_hri: Field["float"],
-    hli_hcf: Field["float"],
-    ice_cld_wgt: Field["float"],
-    # For condensation
-    cpd: Field["float"],
-    rt: Field["float"],  # work array for total water mixing ratio
-    pv: Field["float"],  # thermodynamics
-    piv: Field["float"],  # thermodynamics
-    qsl: Field["float"],  # thermodynamics
-    qsi: Field["float"],
-    frac_tmp: Field[IJ, "float"],  # ice fraction
-    cond_tmp: Field[IJ, "float"],  # condensate
-    a: Field[IJ, "float"],  # related to computation of Sig_s
-    sbar: Field[IJ, "float"],
-    sigma: Field[IJ, "float"],
-    q1: Field[IJ, "float"],
-):
-    # Specific heat computation
-    specific_heat(
-        krr,
-        rv_in,
-        rc_in,
-        ri_in,
-        rr,
-        rs,
-        rg,
-        rh,
-    )
-
-    # 3. subgrid condensation scheme
-    # Translation : only the case with subg_cond = True retained
-    condensation(
-        pabs=pabs,
-        t=t_tmp,
-        rv_in=rv_in,
-        rv_out=rv_out,
-        rc_in=rc_in,
-        rc_out=rc_out,
-        ri_in=ri_in,
-        ri_out=ri_out,
-        rr=rr,
-        rs=rs,
-        rg=rg,
-        sigs=sigs,
-        cldfr=cldfr,
-        sigrc=srcs,
-        ls=ls,
-        lv=lv,
-        ifr=ifr,
-        sigqsat=sigqsat,
-        hlc_hrc=hlc_hrc,
-        hlc_hcf=hlc_hcf,
-        hli_hri=hli_hri,
-        hli_hcf=hli_hcf,
-        ice_cld_wgt=ice_cld_wgt,
-        # Temp fields (to initiate)
-        cpd=cpd,
-        rt=rt,  # work array for total water mixing ratio
-        pv=pv,  # thermodynamics
-        piv=piv,  # thermodynamics
-        qsl=qsl,  # thermodynamics
-        qsi=qsi,
-        frac_tmp=frac_tmp,  # ice fraction
-        cond_tmp=cond_tmp,  # condensate
-        a=a,  # related to computation of Sig_s
-        sbar=sbar,
-        sigma=sigma,
-        q1=q1,
-    )
