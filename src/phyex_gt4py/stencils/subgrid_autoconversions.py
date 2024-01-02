@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 from gt4py.cartesian.gtscript import Field
 from ifs_physics_common.framework.stencil import stencil_collection
-
 
 @stencil_collection("droplet_subgrid_autoconversion")
 def droplet_subgrid_autoconversions(
     cf_mf: Field["float"],
     hlc_hrc: Field["float"],
     hlc_hcf: Field["float"],
-    w1: Field["float"],
+    w1: Field["float"]
 ):
     from __externals__ import criautc, subg_mf_pdf, tstep
 
@@ -48,13 +46,14 @@ def droplet_subgrid_autoconversions(
 
 @stencil_collection("ice_subgrid_autoconversion")
 def ice_subgrid_autoconversions(
-    rc_mf: Field["float"],
+    cf_mf: Field["float"],
     hli_hri: Field["float"],
     hli_hcf: Field["float"],
     w2: Field["float"],
-    t_tmp: Field["float"],
+    t_tmp: Field["float"]
 ):
-
+    
+    
     from __externals__ import criauti, subg_mf_pdf, tt, acriauti, bcriauti, tstep
 
     with computation(PARALLEL), interval(...):
