@@ -13,11 +13,14 @@ if __name__ == "__main__":
     externals = {
         "lvtt":0,
         "lstt":0,
-        "cpd": 0,
         "tt":0,
+        "subg_mf_pdf":0,
+        "subg_cond":0,
+        "cpd":0,
         "cpv":0,
         "Cl":0,
         "Ci":0,
+        "tt":0,
         "alpw":0,
         "betaw":0,
         "gamw":0,
@@ -29,36 +32,13 @@ if __name__ == "__main__":
         "frac_ice_adjust":0,
         "tmaxmix":0,
         "tminmix":0,
+        "criautc":0,
+        "tstep":0,
+        "criauti":0,
+        "acriauti":0,
+        "bcriauti":0,
+        "nrr":6, 
     }
-    
-    # condensation = compile_stencil(
-    #     "condensation",
-    #     default_python_config.gt4py_config,
-    #     externals=externals
-    # )
-    
-    logging.info("Compilation succeeded")
-    
-    logging.info("Compile iteration stencil")
-    
-    externals.update({
-        "cpv": 0,
-        "cpd": 0,
-        "Cl": 0,
-        "Ci": 0,
-        "subg_cond": 0
-    })
-        
-    iteration = compile_stencil(
-        "iteration",
-        default_python_config.gt4py_config,
-        externals=externals)
-    
-    logging.info("Compilation succeeded")
-    
-    logging.info("Compile ice_adjust stencil")
-    
-    externals.update({})
 
     ice_adjust = compile_stencil(
         "ice_adjust",

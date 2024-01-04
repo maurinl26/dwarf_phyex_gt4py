@@ -13,7 +13,7 @@ def update_temperature(
     ri_out: Field["float"],
     lv: Field["float"],
     ls: Field["float"],
-    cpd: Field["float"],
+    cpd: float,
 ):
     t = (
         t[0, 0, 0]
@@ -21,7 +21,7 @@ def update_temperature(
             (rc_out[0, 0, 0] - rc_in[0, 0, 0]) * lv[0, 0, 0]
             + (ri_out[0, 0, 0] - ri_in[0, 0, 0]) * ls[0, 0, 0]
         )
-        / cpd[0, 0, 0]
+        / cpd
     )
 
     return t

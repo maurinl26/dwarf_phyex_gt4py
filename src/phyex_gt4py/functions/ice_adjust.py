@@ -5,19 +5,22 @@ from gt4py.cartesian.gtscript import Field, function
 
 
 @function
-def latent_heat(
-    lvtt: float,
-    lstt: float,
-    cpv: float,
-    tt: float,
-    Ci: float,
-    Cl: float,
-    t: Field["float"],
+def vaporisation_latent_heat(
+    t: Field,
 ):
-    lv = lvtt + (cpv - Cl) * (t[0, 0, 0] - tt)
-    ls = lstt + (cpv - Ci) * (t[0, 0, 0] - tt)
+    
+    from __externals__ import lvtt, cpv, Cl, tt
+    
+    return lvtt + (cpv - Cl) * (t - tt)
 
-    return lv, ls
+@function
+def sublimation_latent_heat(
+    t: Field,
+):
+    
+    from __externals__ import lstt, cpv, Ci, tt
+    
+    return lstt + (cpv - Ci) * (t - tt)
 
 
 @function

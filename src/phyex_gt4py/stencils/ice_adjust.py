@@ -1,40 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing import Dict
 
-from gt4py.cartesian.gtscript import IJ, Field
+from gt4py.cartesian.gtscript import Field
+from gt4py.cartesian.gtscript import exp, log, sqrt, floor, atan
 from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
 from phyex_gt4py.functions.src_1d import src_1d
 from phyex_gt4py.functions.temperature import update_temperature
 
-from phyex_gt4py.phyex_common.constants import Constants
-from phyex_gt4py.functions.ice_adjust import latent_heat
-from phyex_gt4py.phyex_common.nebn import Neb
-from phyex_gt4py.phyex_common.rain_ice_param import RainIceParam
-from phyex_gt4py.phyex_common.param_ice import ParamIce
+from phyex_gt4py.functions.ice_adjust import vaporisation_latent_heat, sublimation_latent_heat
 from ifs_physics_common.framework.stencil import stencil_collection
 
 
 @stencil_collection("ice_adjust")
 def ice_adjust(
-    cst: Constants,
-    parami: ParamIce,
-    icep: RainIceParam,
-    neb: Neb,
-    compute_srcs: bool,
-    itermax: "int",
-    tstep: "float",  # Double timestep
-    nrr: "int",  # Number of moist variables
-    lmfconv: bool,  # size (mfconv) != 0
     # IN - Inputs
     sigqsat: Field["float"],  # coeff applied to qsat variance
-    rhodj: Field["float"],  # density x jacobian
     exnref: Field["float"],  # ref exner pression
     exn: Field["float"],
     rhodref: Field["float"],  #
     pabs: Field["float"],  # absolute pressure at t
     sigs: Field["float"],  # Sigma_s at time t
-    mfconv: Field["float"],
     cf_mf: Field["float"],  # convective mass flux fraction
     rc_mf: Field["float"],  # convective mass flux liquid mixing ratio
     ri_mf: Field["float"],  # convective mass flux ice mixing ratio
@@ -52,17 +37,9 @@ def ice_adjust(
     rcs: Field["float"],  # cloud water m.r. source
     ris: Field["float"],  # cloud ice m.r. at t+1
     cldfr: Field["float"],
-    srcs: Field["float"],  # second order flux s at time t+1
+    # srcs: Field["float"],  # second order flux s at time t+1
     # OUT - Diagnostics
-    icldfr: Field["float"],  # ice cloud fraction
-    wcldfr: Field["float"],  # water or mixed-phase cloud fraction
     ifr: Field["float"],  # ratio cloud ice moist part to dry part
-    ssio: Field[
-        "float"
-    ],  # super-saturation with respect to ice in the super saturated fraction
-    ssiu: Field[
-        "float"
-    ],  # sub-saturation with respect to ice in the subsaturated fraction
     hlc_hrc: Field["float"],
     hlc_hcf: Field["float"],
     hli_hri: Field["float"],
@@ -73,6 +50,7 @@ def ice_adjust(
     rc_out: Field["float"],  # cloud water m.r. source
     ri_out: Field["float"],  # cloud ice m.r. source
     # Temporary fields
+    sigrc: Field["float"],
     rv_tmp: Field["float"],
     ri_tmp: Field["float"],
     rc_tmp: Field["float"],
@@ -81,53 +59,34 @@ def ice_adjust(
     lv: Field["float"],  # guess of the Lv at t+1
     ls: Field["float"],  # guess of the Ls at t+1
     criaut: Field["float"],  # autoconversion thresholds
-    # TODO : set constants as externals
     # Temporary fields # Condensation
-    cpd: Field["float"],
     rt: Field["float"],  # work array for total water mixing ratio
     pv: Field["float"],  # thermodynamics
     piv: Field["float"],  # thermodynamics
     qsl: Field["float"],  # thermodynamics
     qsi: Field["float"],
-    frac_tmp: Field[IJ, "float"],  # ice fraction
-    cond_tmp: Field[IJ, "float"],  # condensate
-    a: Field[IJ, "float"],  # related to computation of Sig_s
-    sbar: Field[IJ, "float"],
-    sigma: Field[IJ, "float"],
-    q1: Field[IJ, "float"],
+    frac_tmp: Field["float"],  # ice fraction
+    cond_tmp: Field["float"],  # condensate
+    a: Field["float"],  # related to computation of Sig_s
+    sbar: Field["float"],
+    sigma: Field["float"],
+    q1: Field["float"],
 ):
     """_summary_
 
     Args:
-        cst (Constants): physical constants
-        parami (ParamIce): mixed phase cloud parameters
-        icep (RainIceParam): microphysical factors used in the warm and cold schemes
-        neb (Neb): constants for nebulosity calculations
-        compute_srcs (bool): boolean to compute second order flux
-        itermax ("int"): _description_
-        tstep ("float"): double time step
-        nrr (int)
-        icldfr (Field["float"]): _description_
-        hlc_hcf (Field["float"]): _description_
-        hli_hri (Field["float"]): _description_
-        hli_hcf (Field["float"]): _description_
-        rv_tmp (Field["float"]): _description_
-        ri_tmp (Field["float"]): _description_
-        rc_tmp (Field["float"]): _description_
-        sigqsat_tmp (Field["float"]): _description_
-        cph (Field["float"]): _description_
+
     """
 
     from __externals__ import (
-        lvtt,
-        lstt,
-        cpv,
         tt,
         subg_mf_pdf,
         subg_cond,
-        cpd, cpv, Cl, Ci,
-        tt,
         cpd,
+        cpv,
+        Cl,
+        Ci,
+        tt,
         alpw,
         betaw,
         gamw,
@@ -136,29 +95,31 @@ def ice_adjust(
         gami,
         Rd,
         Rv,
-        frac_ice_adjust,
-        tmaxmix,
-        tminmix,
-        criautc, tstep,
-        criauti, acriauti, bcriauti
-        )
+        criautc,
+        tstep,
+        criauti,
+        acriauti,
+        bcriauti,
+        nrr,  # number of moist variables
+    )
 
     # 2.3 Compute the variation of mixing ratio
     with computation(PARALLEL), interval(...):
         t_tmp = th[0, 0, 0] * exn[0, 0, 0]
-        lv, ls = latent_heat(lvtt, lstt, cpv, tt, t_tmp)
+        lv = vaporisation_latent_heat(t_tmp)
+        ls = sublimation_latent_heat(t_tmp)
 
         # Rem
-        rv_tmp[0, 0, 0] = rv_in[0, 0, 0]
-        ri_tmp[0, 0, 0] = ri_in[0, 0, 0]
-        rc_tmp[0, 0, 0] = rc_in[0, 0, 0]
-
+        rv_tmp[0, 0, 0] = rv[0, 0, 0]
+        ri_tmp[0, 0, 0] = ri[0, 0, 0]
+        rc_tmp[0, 0, 0] = rc[0, 0, 0]
 
     # Translation note : in Fortran, ITERMAX = 1, DO JITER =1,ITERMAX
     # Translation note : version without iteration is kept (1 iteration)
     #                   IF jiter = 1; CALL ITERATION()
     # jiter > 0
-    
+
+    # TODO : fix number of moist variables to 6 (without hail)
     # 2.4 specific heat for moist air at t+1
     with computation(PARALLEL), interval(...):
         if nrr == 7:
@@ -173,11 +134,9 @@ def ice_adjust(
         if nrr == 2:
             cph = cpd + cpv * rv_tmp + Cl * rc_tmp + Ci * ri_tmp
 
-
     # 3. subgrid condensation scheme
     # Translation : only the case with subg_cond = True retained
     with computation(PARALLEL), interval(...):
-        
         cldfr[0, 0, 0] = 0
         sigrc[0, 0, 0] = 0
         rv_out[0, 0, 0] = 0
@@ -208,19 +167,21 @@ def ice_adjust(
 
         #
         pv[0, 0, 0] = min(
-            exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
+            exp(alpw - betaw / t_tmp[0, 0, 0] - gamw * log(t_tmp[0, 0, 0])),
             0.99 * pabs[0, 0, 0],
         )
         piv[0, 0, 0] = min(
-            exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
+            exp(alpi - betai / t_tmp[0, 0, 0]) - gami * log(t_tmp[0, 0, 0]),
             0.99 * pabs[0, 0, 0],
         )
 
         if rc_tmp > ri_tmp:
             if ri_tmp > 1e-20:
-                frac_tmp[0, 0, 0] = ri_tmp[0, 0, 0] / (rc_tmp[0, 0, 0] + ri_tmp[0, 0, 0])
+                frac_tmp[0, 0, 0] = ri_tmp[0, 0, 0] / (
+                    rc_tmp[0, 0, 0] + ri_tmp[0, 0, 0]
+                )
 
-        frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
+        frac_tmp = compute_frac_ice(t_tmp)
 
         qsl[0, 0, 0] = Rd / Rv * pv[0, 0, 0] / (pabs[0, 0, 0] - pv[0, 0, 0])
         qsi[0, 0, 0] = Rd / Rv * piv[0, 0, 0] / (pabs[0, 0, 0] - piv[0, 0, 0])
@@ -230,7 +191,7 @@ def ice_adjust(
         lvs = (1 - frac_tmp) * lv + frac_tmp * ls
 
         # # coefficients a et b
-        ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
+        ah = lvs * qsl / (Rv * t_tmp[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
         a[0, 0, 0] = 1 / (1 + lvs / cph[0, 0, 0] * ah)
         # # b[0, 0, 0] = ah * a
         sbar = a * (
@@ -278,11 +239,13 @@ def ice_adjust(
             0, 0, 0
         ]  # liquid condensate
         ri_out[0, 0, 0] = frac_tmp[0, 0, 0] * cond_tmp[0, 0, 0]  # solid condensate
-        t[0, 0, 0] = update_temperature(t, rc_tmp, rc_out, ri_tmp, ri_out, lv, ls, cpd)
+        t_tmp[0, 0, 0] = update_temperature(
+            t_tmp, rc_tmp, rc_out, ri_tmp, ri_out, lv, ls, cpd
+        )
         rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
 
         sigrc[0, 0, 0] = sigrc[0, 0, 0] * min(3, max(1, 1 - q1[0, 0, 0]))
-    
+
     # Translation note : end jiter
 
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
@@ -299,12 +262,13 @@ def ice_adjust(
 
         w2 = max(w2, -ris[0, 0, 0]) if w1 > 0 else min(w2, rvs[0, 0, 0])
 
-        if not subg_cond:
-            cldfr[0, 0, 0] = 1 if rcs[0, 0, 0] + ris[0, 0, 0] > 1e-12 / tstep else 0
-            srcs[0, 0, 0] = cldfr[0, 0, 0] if compute_srcs else None
+        if subg_cond == 0:
+            if rcs[0, 0, 0] + ris[0, 0, 0] > 1e-12 / tstep:
+                cldfr[0, 0, 0] = 1
+            else:
+                cldfr[0, 0, 0] = 0
 
         # Translation note : LSUBG_COND = TRUE for Arome
-
         else:
             w1 = rc_mf[0, 0, 0] / tstep
             w2 = ri_mf[0, 0, 0] / tstep
@@ -406,9 +370,8 @@ def ice_adjust(
         rv_tmp[0, 0, 0] -= w1 + w2
         t_tmp += (w1 * lv + w2 * ls) / cph
 
-        # TODO :  remove unused out variables
+        # TODO : remove unused out variables
         rv_out[0, 0, 0] = rv_tmp[0, 0, 0]
         ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
         rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
         th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
-    
