@@ -32,7 +32,14 @@ class AroAdjust(ImplicitTendencyComponent):
         externals.update(asdict(phyex.nebn))
         externals.update(asdict(phyex.cst))
         externals.update(asdict(phyex.param_icen))
-        externals.update({})
+        externals.update({
+            "nrr": 6,
+            "criautc": 0,
+            "acriauti": 0,
+            "bcriauti": 0,
+            "criauti": 0,
+            "tstep": 1,
+        })
 
         self.ice_adjust = self.compile_stencil("ice_adjust", externals)
 
