@@ -3,26 +3,19 @@ from __future__ import annotations
 from typing import Dict
 
 from gt4py.cartesian.gtscript import IJ, Field
+from phyex_gt4py.functions.compute_ice_frac import compute_frac_ice
+from phyex_gt4py.functions.src_1d import src_1d
+from phyex_gt4py.functions.temperature import update_temperature
 
 from phyex_gt4py.phyex_common.constants import Constants
 from phyex_gt4py.functions.ice_adjust import latent_heat
 from phyex_gt4py.phyex_common.nebn import Neb
 from phyex_gt4py.phyex_common.rain_ice_param import RainIceParam
 from phyex_gt4py.phyex_common.param_ice import ParamIce
-from phyex_gt4py.stencils.condensation import condensation
 from ifs_physics_common.framework.stencil import stencil_collection
-from phyex_gt4py.stencils.mass_flux import mass_flux
-from phyex_gt4py.stencils.subgrid_autoconversions import (
-    droplet_subgrid_autoconversions,
-    ice_subgrid_autoconversions,
-)
 
 
-@stencil_collection("mixing_ratio_variation")
-def mixing_ratio():
-    NotImplemented
-
-
+@stencil_collection("ice_adjust")
 def ice_adjust(
     cst: Constants,
     parami: ParamIce,
@@ -132,7 +125,23 @@ def ice_adjust(
         tt,
         subg_mf_pdf,
         subg_cond,
-    )
+        cpd, cpv, Cl, Ci,
+        tt,
+        cpd,
+        alpw,
+        betaw,
+        gamw,
+        alpi,
+        betai,
+        gami,
+        Rd,
+        Rv,
+        frac_ice_adjust,
+        tmaxmix,
+        tminmix,
+        criautc, tstep,
+        criauti, acriauti, bcriauti
+        )
 
     # 2.3 Compute the variation of mixing ratio
     with computation(PARALLEL), interval(...):
@@ -144,61 +153,137 @@ def ice_adjust(
         ri_tmp[0, 0, 0] = ri_in[0, 0, 0]
         rc_tmp[0, 0, 0] = rc_in[0, 0, 0]
 
+
+    # Translation note : in Fortran, ITERMAX = 1, DO JITER =1,ITERMAX
+    # Translation note : version without iteration is kept (1 iteration)
+    #                   IF jiter = 1; CALL ITERATION()
     # jiter > 0
-    for jiter in range(0, itermax):
-        # backup(rv_tmp, rc_tmp, ri_tmp)
-        # Specific heat computation
-        specific_heat(
-            nrr,
-            rv_tmp,
-            rc_tmp,
-            ri_tmp,
-            rr,
-            rs,
-            rg,
-            rh,
+    
+    # 2.4 specific heat for moist air at t+1
+    with computation(PARALLEL), interval(...):
+        if nrr == 7:
+            cph = cpd + cpv * rv_tmp + Cl * (rc_tmp + rr) + Ci * (ri_tmp + rs + rg + rh)
+
+        if nrr == 6:
+            cph = cpd + cpv * rv_tmp + Cl * (rc_tmp + rr) + Ci * (ri_tmp + rs + rg)
+        if nrr == 5:
+            cph = cpd + cpv * rv_tmp + Cl * (rc_tmp + rr) + Ci * (ri_tmp + rs)
+        if nrr == 4:
+            cph = cpd + cpv * rv_tmp + Cl * (rc_tmp + rr)
+        if nrr == 2:
+            cph = cpd + cpv * rv_tmp + Cl * rc_tmp + Ci * ri_tmp
+
+
+    # 3. subgrid condensation scheme
+    # Translation : only the case with subg_cond = True retained
+    with computation(PARALLEL), interval(...):
+        
+        cldfr[0, 0, 0] = 0
+        sigrc[0, 0, 0] = 0
+        rv_out[0, 0, 0] = 0
+        rc_out[0, 0, 0] = 0
+        ri_out[0, 0, 0] = 0
+
+        # local fields
+        # Translation note : 506 -> 514 kept (ocnd2 == False) # Arome default setting
+        # Translation note : 515 -> 575 skipped (ocnd2 == True)
+        prifact = 1  # ocnd2 == False for AROME
+        ifr[0, 0, 0] = 10
+        frac_tmp[0, 0, 0] = 0  # l340 in Condensation .f90
+
+        # Translation note : 493 -> 503 : hlx_hcf and hlx_hrx are assumed to be present
+        hlc_hcf[0, 0, 0] = 0
+        hlc_hrc[0, 0, 0] = 0
+        hli_hcf[0, 0, 0] = 0
+        hli_hri[0, 0, 0] = 0
+
+        # Translation note : 252 -> 263 if(present(PLV)) skipped (ls/lv are assumed to be present present)
+        # Translation note : 264 -> 274 if(present(PCPH)) skipped (files are assumed to be present)
+
+        # store total water mixing ratio (244 -> 248)
+        rt[0, 0, 0] = rv_tmp + rc_tmp + ri_tmp * prifact
+
+        # Translation note : 276 -> 310 (not osigmas) skipped (osigmas = True) for Arome default version
+        # Translation note : 316 -> 331 (ocnd2 == True) skipped
+
+        #
+        pv[0, 0, 0] = min(
+            exp(alpw - betaw / t[0, 0, 0] - gamw * log(t[0, 0, 0])),
+            0.99 * pabs[0, 0, 0],
+        )
+        piv[0, 0, 0] = min(
+            exp(alpi - betai / t[0, 0, 0]) - gami * log(t[0, 0, 0]),
+            0.99 * pabs[0, 0, 0],
         )
 
-        # 3. subgrid condensation scheme
-        # Translation : only the case with subg_cond = True retained
-        condensation(
-            pabs=pabs,
-            t=t_tmp,
-            rv_in=rv_tmp,
-            rv_out=rv_out,
-            rc_in=rc_tmp,
-            rc_out=rc_out,
-            ri_in=ri_tmp,
-            ri_out=ri_out,
-            rr=rr,
-            rs=rs,
-            rg=rg,
-            sigs=sigs,
-            cldfr=cldfr,
-            sigrc=srcs,
-            ls=ls,
-            lv=lv,
-            ifr=ifr,
-            sigqsat=sigqsat,
-            hlc_hrc=hlc_hrc,
-            hlc_hcf=hlc_hcf,
-            hli_hri=hli_hri,
-            hli_hcf=hli_hcf,
-            ice_cld_wgt=ice_cld_wgt,
-            # Temp fields (to initiate)
-            cpd=cpd,
-            rt=rt,  # work array for total water mixing ratio
-            pv=pv,  # thermodynamics
-            piv=piv,  # thermodynamics
-            qsl=qsl,  # thermodynamics
-            qsi=qsi,
-            frac_tmp=frac_tmp,  # ice fraction
-            cond_tmp=cond_tmp,  # condensate
-            a=a,  # related to computation of Sig_s
-            sbar=sbar,
-            sigma=sigma,
-            q1=q1,
+        if rc_tmp > ri_tmp:
+            if ri_tmp > 1e-20:
+                frac_tmp[0, 0, 0] = ri_tmp[0, 0, 0] / (rc_tmp[0, 0, 0] + ri_tmp[0, 0, 0])
+
+        frac_tmp = compute_frac_ice(frac_ice_adjust, tmaxmix, tminmix, t, frac_tmp, tt)
+
+        qsl[0, 0, 0] = Rd / Rv * pv[0, 0, 0] / (pabs[0, 0, 0] - pv[0, 0, 0])
+        qsi[0, 0, 0] = Rd / Rv * piv[0, 0, 0] / (pabs[0, 0, 0] - piv[0, 0, 0])
+
+        # # dtype_interpolate bewteen liquid and solid as a function of temperature
+        qsl = (1 - frac_tmp) * qsl + frac_tmp * qsi
+        lvs = (1 - frac_tmp) * lv + frac_tmp * ls
+
+        # # coefficients a et b
+        ah = lvs * qsl / (Rv * t[0, 0, 0] ** 2) * (1 + Rv * qsl / Rd)
+        a[0, 0, 0] = 1 / (1 + lvs / cph[0, 0, 0] * ah)
+        # # b[0, 0, 0] = ah * a
+        sbar = a * (
+            rt[0, 0, 0] - qsl[0, 0, 0] + ah * lvs * (rc_tmp + ri_tmp * prifact) / cpd
         )
+
+        sigma[0, 0, 0] = sqrt((2 * sigs) ** 2 + (sigqsat * qsl * a) ** 2)
+        sigma[0, 0, 0] = max(1e-10, sigma[0, 0, 0])
+
+        # Translation notes : 469 -> 504 (hcondens = "CB02")
+        # normalized saturation deficit
+        q1[0, 0, 0] = sbar[0, 0, 0] / sigma[0, 0, 0]
+        if q1 > 0:
+            if q1 <= 2:
+                cond_tmp[0, 0, 0] = min(
+                    exp(-1) + 0.66 * q1[0, 0, 0] + 0.086 * q1[0, 0, 0] ** 2, 2
+                )  # we use the MIN function for continuity
+        elif q1 > 2:
+            cond_tmp[0, 0, 0] = q1[0, 0, 0]
+        else:
+            cond_tmp[0, 0, 0] = exp(1.2 * q1[0, 0, 0] - 1)
+
+        cond_tmp[0, 0, 0] *= sigma[0, 0, 0]
+
+        # cloud fraction
+        if cond_tmp < 1e-12:
+            cldfr[0, 0, 0] = 0
+        else:
+            cldfr[0, 0, 0] = max(0, min(1, 0.5 + 0.36 * atan(1.55 * q1[0, 0, 0])))
+
+        if cldfr[0, 0, 0] == 0:
+            cond_tmp[0, 0, 0] = 0
+
+        inq1 = min(
+            10, max(-22, floor(min(-100, 2 * q1[0, 0, 0])))
+        )  # inner min/max prevents sigfpe when 2*zq1 does not fit dtype_into an "int"
+        inc = 2 * q1 - inq1
+
+        sigrc[0, 0, 0] = min(
+            1, (1 - inc) * src_1d(inq1 + 22) + inc * src_1d(inq1 + 1 + 22)
+        )
+
+        # # Translation notes : 506 -> 514 (not ocnd2)
+        rc_out[0, 0, 0] = (1 - frac_tmp[0, 0, 0]) * cond_tmp[
+            0, 0, 0
+        ]  # liquid condensate
+        ri_out[0, 0, 0] = frac_tmp[0, 0, 0] * cond_tmp[0, 0, 0]  # solid condensate
+        t[0, 0, 0] = update_temperature(t, rc_tmp, rc_out, ri_tmp, ri_out, lv, ls, cpd)
+        rv_out[0, 0, 0] = rt[0, 0, 0] - rc_out[0, 0, 0] - ri_out[0, 0, 0] * prifact
+
+        sigrc[0, 0, 0] = sigrc[0, 0, 0] * min(3, max(1, 1 - q1[0, 0, 0]))
+    
+    # Translation note : end jiter
 
     ##### 5.     COMPUTE THE SOURCES AND STORES THE CLOUD FRACTION #####
     with computation(PARALLEL), interval(...):
@@ -236,53 +321,94 @@ def ice_adjust(
                 (w1 * lv[0, 0, 0] + w2 * ls[0, 0, 0]) / cph[0, 0, 0] / exnref[0, 0, 0]
             )
 
-    droplet_subgrid_autoconversions(cf_mf, hlc_hrc, hlc_hcf, w1)
-
-    ice_subgrid_autoconversions(cf_mf, hli_hri, hli_hcf, w2, t_tmp)
-
-    mass_flux(
-        rc_mf,
-        ri_mf,
-        rv_tmp,
-        rc_tmp,
-        ri_tmp,
-        rv_out,
-        rc_out,
-        ri_out,
-        t_tmp,
-        th_out,
-        exn,
-        ls,
-        lv,
-        cph,
-    )
-
-
-@stencil_collection("specific_heat")
-def specific_heat(
-    nrr: int,
-    rv_in: Field["float"],
-    rc_in: Field["float"],
-    ri_in: Field["float"],
-    rr: Field["float"],
-    rs: Field["float"],
-    rg: Field["float"],
-    rh: Field["float"],
-    cph: Field["float"],
-):
-    # Constants
-    from __externals__ import cpd, cpv, Cl, Ci
-
-    # 2.4 specific heat for moist air at t+1
+    # Droplets subgrid autoconversion
     with computation(PARALLEL), interval(...):
-        if nrr == 7:
-            cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs + rg + rh)
+        criaut = criautc / rhodref[0, 0, 0]
 
-        if nrr == 6:
-            cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs + rg)
-        if nrr == 5:
-            cph = cpd + cpv * rv_in + Cl * (rc_in + rr) + Ci * (ri_in + rs)
-        if nrr == 4:
-            cph = cpd + cpv * rv_in + Cl * (rc_in + rr)
-        if nrr == 2:
-            cph = cpd + cpv * rv_in + Cl * rc_in + Ci * ri_in
+        if subg_mf_pdf == 0:
+            if w1 * tstep > cf_mf[0, 0, 0] * criaut:
+                hlc_hrc += w1 * tstep
+                hlc_hcf = min(1, hlc_hcf[0, 0, 0] + cf_mf[0, 0, 0])
+
+        elif subg_mf_pdf == 1:
+            if w1 * tstep > cf_mf[0, 0, 0] * criaut:
+                hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w1 * tstep)
+                hr = w1 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
+                    3 * max(1e-20, w1 * tstep)
+                )
+
+            elif 2 * w1 * tstep <= cf_mf[0, 0, 0] * criaut:
+                hcf = 0
+                hr = 0
+
+            else:
+                hcf = (2 * w1 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
+                    2.0 * max(1.0e-20, w1 * tstep) ** 2
+                )
+                hr = (
+                    4.0 * (w1 * tstep) ** 3
+                    - 3.0 * w1 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
+                    + (criaut * cf_mf[0, 0, 0]) ** 3
+                ) / (3 * max(1.0e-20, w1 * tstep) ** 2)
+
+            hcf *= cf_mf[0, 0, 0]
+            hlc_hcf = min(1, hlc_hcf + hcf)
+            hlc_hrc += hr
+
+    # Ice subgrid autoconversion
+    with computation(PARALLEL), interval(...):
+        criaut = min(
+            criauti,
+            10 ** (acriauti * (t_tmp[0, 0, 0] - tt) + bcriauti),
+        )
+
+        if subg_mf_pdf == 0:
+            if w2 * tstep > cf_mf[0, 0, 0] * criaut:
+                hli_hri += w2 * tstep
+                hli_hcf = min(1, hli_hcf[0, 0, 0] + cf_mf[0, 0, 0])
+
+        elif subg_mf_pdf == 1:
+            if w2 * tstep > cf_mf[0, 0, 0] * criaut:
+                hli_hcf = 1 - 0.5 * (criaut * cf_mf[0, 0, 0]) / max(1e-20, w2 * tstep)
+                hli_hri = w2 * tstep - (criaut * cf_mf[0, 0, 0]) ** 3 / (
+                    3 * max(1e-20, w2 * tstep)
+                )
+
+        elif 2 * w2 * tstep <= cf_mf[0, 0, 0] * criaut:
+            hli_hcf = 0
+            hli_hri = 0
+
+        else:
+            hli_hcf = (2 * w2 * tstep - criaut * cf_mf[0, 0, 0]) ** 2 / (
+                2.0 * max(1.0e-20, w2 * tstep) ** 2
+            )
+            hli_hri = (
+                4.0 * (w2 * tstep) ** 3
+                - 3.0 * w2 * tstep * (criaut * cf_mf[0, 0, 0]) ** 2
+                + (criaut * cf_mf[0, 0, 0]) ** 3
+            ) / (3 * max(1.0e-20, w2 * tstep) ** 2)
+
+        hli_hcf *= cf_mf[0, 0, 0]
+        hli_hcf = min(1, hli_hcf + hli_hcf)
+        hli_hri += hli_hri
+
+    # Subgrid mass fluxes
+    with computation(PARALLEL), interval(...):
+        w1 = rc_mf
+        w2 = ri_mf
+
+        if w1 + w2 > rv_out[0, 0, 0]:
+            w1 *= rv_tmp / (w1 + w2)
+            w2 = rv_tmp - w1
+
+        rc_tmp[0, 0, 0] += w1
+        ri_tmp[0, 0, 0] += w2
+        rv_tmp[0, 0, 0] -= w1 + w2
+        t_tmp += (w1 * lv + w2 * ls) / cph
+
+        # TODO :  remove unused out variables
+        rv_out[0, 0, 0] = rv_tmp[0, 0, 0]
+        ri_out[0, 0, 0] = ri_tmp[0, 0, 0]
+        rc_out[0, 0, 0] = rc_tmp[0, 0, 0]
+        th_out[0, 0, 0] = t_tmp[0, 0, 0] / exn[0, 0, 0]
+    
