@@ -56,12 +56,10 @@ def allocate_state(
         "cf_mf": allocate_f(),
     }
 
-
-def initialize_state_with_constant(state: DataArrayDict, C: float) -> None:
+def initialize_state_with_constant(state: DataArrayDict, C: float, gt4py_config: GT4PyConfig) -> None:
 
     for name in state.keys():
-        buffer = C * ones(state[name].shape)
-        initialize_field(state[name], buffer)
+        state[name] = C * ones(state[name].shape, backend=gt4py_config.backend)
 
 
 def get_state(
